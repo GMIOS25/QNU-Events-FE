@@ -49,6 +49,20 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = ''
       text: 'text-blue-800',
       border: 'border-blue-200',
     },
+    ACCEPTED: {
+      label: 'Đã điểm danh',
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />,
+      bg: 'bg-emerald-50',
+      text: 'text-emerald-800',
+      border: 'border-emerald-200',
+    },
+    NOT_CHECKED_IN: {
+      label: 'Chưa điểm danh',
+      icon: <Clock className="w-3.5 h-3.5 text-amber-600" aria-hidden="true" />,
+      bg: 'bg-amber-50',
+      text: 'text-amber-800',
+      border: 'border-amber-200',
+    },
     ATTENDED: {
       label: 'Đã tham gia',
       icon: <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" aria-hidden="true" />,
