@@ -150,3 +150,4 @@ interface HistoryItem {
 - `epoch = floor(nowEpochSeconds / rotationSeconds)` (mặc định rotation = 10s, grace = 3s).
 - Header `Idempotency-Key` là bắt buộc khi gọi `/attendance/qr`. Cùng key sẽ trả lại response đã lưu mà không tính thêm lượt attempt.
 - Tối đa 3 lần thử sai (`QR_*`). Lần thứ 4 sẽ bị từ chối với `ATTEMPT_LIMIT_REACHED`.
+
