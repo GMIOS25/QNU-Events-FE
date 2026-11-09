@@ -115,3 +115,4 @@ export interface HistoryItem {
   activityType: string;
   activityPoints: number;
 }
+

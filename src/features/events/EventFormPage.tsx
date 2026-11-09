@@ -5,7 +5,7 @@ import { fetchEvent, createEvent, updateEvent, fetchClasses } from '../../api/ev
 import { Button } from '../../components/Button';
 import { Field } from '../../components/Field';
 import { ErrorBanner } from '../../components/ErrorBanner';
-import { ArrowLeft, Save, Calendar, Users, MapPin, Award } from 'lucide-react';
+import { ArrowLeft, Save, Calendar, Users, Award } from 'lucide-react';
 import type { EventUpsert } from './types';
 
 export const EventFormPage: React.FC = () => {
@@ -182,49 +182,42 @@ export const EventFormPage: React.FC = () => {
               Thông tin chung
             </h2>
 
-            <Field label="Tiêu đề sự kiện" required>
-              <input
-                type="text"
-                placeholder="VD: Hội thảo Công nghệ Trí tuệ Nhân tạo & Tương lai CNTT"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </Field>
+            <Field
+              label="Tiêu đề sự kiện"
+              placeholder="VD: Hội thảo Công nghệ Trí tuệ Nhân tạo & Tương lai CNTT"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
 
-            <Field label="Mô tả sự kiện">
+            <div className="w-full flex flex-col gap-1 text-left">
+              <label className="text-sm font-medium text-slate-700">Mô tả sự kiện</label>
               <textarea
                 rows={3}
                 placeholder="Mô tả tóm tắt nội dung, diễn giả, quyền lợi của người tham gia..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-            </Field>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Địa điểm tổ chức" required>
-                <div className="relative">
-                  <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="VD: Hội trường A - Trường ĐH Quy Nhơn"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </Field>
+              <Field
+                label="Địa điểm tổ chức"
+                placeholder="VD: Hội trường A - Trường ĐH Quy Nhơn"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                required
+              />
 
-              <Field label="Chỉ tiêu số lượng tham gia (suất)" required>
-                <input
-                  type="number"
-                  min={1}
-                  value={quotaTotal}
-                  onChange={(e) => setQuotaTotal(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </Field>
+              <Field
+                label="Chỉ tiêu số lượng tham gia (suất)"
+                type="number"
+                min={1}
+                value={quotaTotal}
+                onChange={(e) => setQuotaTotal(Math.max(1, parseInt(e.target.value) || 1))}
+                required
+              />
             </div>
           </div>
 
@@ -236,52 +229,47 @@ export const EventFormPage: React.FC = () => {
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Thời gian bắt đầu sự kiện" required>
-                <input
-                  type="datetime-local"
-                  value={startAt}
-                  onChange={(e) => setStartAt(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </Field>
+              <Field
+                label="Thời gian bắt đầu sự kiện"
+                type="datetime-local"
+                value={startAt}
+                onChange={(e) => setStartAt(e.target.value)}
+                required
+              />
 
-              <Field label="Thời gian kết thúc sự kiện" required>
-                <input
-                  type="datetime-local"
-                  value={endAt}
-                  onChange={(e) => setEndAt(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </Field>
+              <Field
+                label="Thời gian kết thúc sự kiện"
+                type="datetime-local"
+                value={endAt}
+                onChange={(e) => setEndAt(e.target.value)}
+                required
+              />
             </div>
 
-            <Field label="Hạn chót sinh viên đăng ký giữ chỗ" required>
-              <input
-                type="datetime-local"
-                value={registrationDeadline}
-                onChange={(e) => setRegistrationDeadline(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </Field>
+            <Field
+              label="Hạn chót sinh viên đăng ký giữ chỗ"
+              type="datetime-local"
+              value={registrationDeadline}
+              onChange={(e) => setRegistrationDeadline(e.target.value)}
+              required
+            />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Mở cửa sổ điểm danh QR" required>
-                <input
-                  type="datetime-local"
-                  value={attendanceOpenAt}
-                  onChange={(e) => setAttendanceOpenAt(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </Field>
+              <Field
+                label="Mở cửa sổ điểm danh QR"
+                type="datetime-local"
+                value={attendanceOpenAt}
+                onChange={(e) => setAttendanceOpenAt(e.target.value)}
+                required
+              />
 
-              <Field label="Đóng cửa sổ điểm danh QR" required>
-                <input
-                  type="datetime-local"
-                  value={attendanceCloseAt}
-                  onChange={(e) => setAttendanceCloseAt(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </Field>
+              <Field
+                label="Đóng cửa sổ điểm danh QR"
+                type="datetime-local"
+                value={attendanceCloseAt}
+                onChange={(e) => setAttendanceCloseAt(e.target.value)}
+                required
+              />
             </div>
           </div>
 
@@ -293,25 +281,22 @@ export const EventFormPage: React.FC = () => {
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Loại hoạt động rèn luyện" required>
-                <input
-                  type="text"
-                  placeholder="VD: Hội thảo khoa học, Hoạt động tình nguyện..."
-                  value={activityType}
-                  onChange={(e) => setActivityType(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </Field>
+              <Field
+                label="Loại hoạt động rèn luyện"
+                placeholder="VD: Hội thảo khoa học, Hoạt động tình nguyện..."
+                value={activityType}
+                onChange={(e) => setActivityType(e.target.value)}
+                required
+              />
 
-              <Field label="Điểm rèn luyện cộng thêm" required>
-                <input
-                  type="number"
-                  min={0}
-                  value={activityPoints}
-                  onChange={(e) => setActivityPoints(Math.max(0, parseInt(e.target.value) || 0))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </Field>
+              <Field
+                label="Điểm rèn luyện cộng thêm"
+                type="number"
+                min={0}
+                value={activityPoints}
+                onChange={(e) => setActivityPoints(Math.max(0, parseInt(e.target.value) || 0))}
+                required
+              />
             </div>
           </div>
 
@@ -373,3 +358,4 @@ export const EventFormPage: React.FC = () => {
     </div>
   );
 };
+
