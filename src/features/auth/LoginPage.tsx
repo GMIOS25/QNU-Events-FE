@@ -22,6 +22,7 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [serverError, setServerError] = useState<{ message: string; code?: string } | null>(null);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const {
     register,
@@ -39,7 +40,7 @@ export const LoginPage: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     setServerError(null);
     try {
-      await login(data.loginId, data.password);
+      await login(data.loginId, data.password, rememberMe);
       const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
       navigate(from, { replace: true });
     } catch (err) {
@@ -63,19 +64,31 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="mx-auto w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-md shadow-blue-500/20 mb-4">
-          <CalendarCheck className="w-6 h-6" aria-hidden="true" />
+    <div className="min-h-screen bg-[#F3F8FC] text-[#25435E] flex flex-col justify-between py-8 px-4 sm:px-6 lg:px-8">
+      <div className="my-auto sm:mx-auto sm:w-full sm:max-w-[440px]">
+        <div className="text-center">
+          <div className="mx-auto w-14 h-14 bg-[#0789B7] rounded-2xl flex items-center justify-center text-white shadow-sm ring-4 ring-[#E5F4FC] mb-4">
+            <CalendarCheck className="w-7 h-7" aria-hidden="true" />
+          </div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#0789B7]">
+            HỆ THỐNG QUẢN LÝ SỰ KIỆN
+          </p>
+          <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-[#25435E]">QNU Events</h2>
+          <p className="mt-1 text-sm text-[#73899B]">
+            Cổng đăng ký và điểm danh hoạt động trực tuyến Đại học Quy Nhơn
+          </p>
         </div>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">QNU Events</h2>
-        <p className="mt-1 text-sm text-slate-500">Cổng quản lý và điểm danh sự kiện trực tuyến Đại học Quy Nhơn</p>
-      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-sm border border-slate-200 rounded-2xl sm:px-10">
+        <div className="mt-6 bg-white py-7 px-6 shadow-xs border border-[#DCE5EE] rounded-2xl sm:px-8">
+          <div className="mb-5 pb-4 border-b border-[#DCE5EE]">
+            <h3 className="text-lg font-semibold text-[#25435E]">Đăng nhập</h3>
+            <p className="mt-0.5 text-xs text-[#73899B]">
+              Nhập mã sinh viên hoặc tài khoản ban tổ chức để tiếp tục
+            </p>
+          </div>
+
           {serverError && (
-            <div className="mb-6">
+            <div className="mb-5">
               <ErrorBanner
                 message={serverError.message}
                 code={serverError.code}
@@ -90,6 +103,11 @@ export const LoginPage: React.FC = () => {
               placeholder="Ví dụ: sv001 hoặc owner01"
               autoComplete="username"
               error={errors.loginId?.message}
+              className={
+                errors.loginId
+                  ? undefined
+                  : 'border-[#DCE5EE] focus:border-[#0789B7] focus:ring-[#E5F4FC] text-[#25435E]'
+              }
               {...register('loginId')}
             />
 
@@ -99,27 +117,51 @@ export const LoginPage: React.FC = () => {
               placeholder="••••••••"
               autoComplete="current-password"
               error={errors.password?.message}
+              className={
+                errors.password
+                  ? undefined
+                  : 'border-[#DCE5EE] focus:border-[#0789B7] focus:ring-[#E5F4FC] text-[#25435E]'
+              }
               {...register('password')}
             />
 
-            <div className="pt-2">
-              <Button type="submit" variant="primary" loading={isSubmitting} className="w-full">
+            <div className="flex items-center justify-between pt-0.5">
+              <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  name="rememberMe"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-[#DCE5EE] accent-[#0789B7] focus:ring-2 focus:ring-[#0789B7]/30 cursor-pointer"
+                />
+                <span className="text-sm font-medium text-[#25435E]">Lưu đăng nhập</span>
+              </label>
+            </div>
+
+            <div className="pt-1">
+              <Button
+                type="submit"
+                variant="primary"
+                loading={isSubmitting}
+                className="w-full !bg-[#0789B7] hover:!bg-[#087DB4] focus:!ring-[#0789B7] text-white font-semibold"
+              >
                 Đăng nhập
               </Button>
             </div>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-100">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider text-center mb-3">
+          <div className="mt-6 pt-5 border-t border-[#DCE5EE]">
+            <p className="text-[11px] font-semibold text-[#73899B] uppercase tracking-wider text-center mb-3">
               Tài khoản demo thử nghiệm (Mật khẩu: Demo@12345)
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickFill('owner01')}
-                icon={<ShieldCheck className="w-4 h-4 text-blue-600" />}
+                className="!border-[#DCE5EE] !text-[#25435E] hover:!bg-[#E5F4FC] hover:!border-[#0789B7]/40 hover:!text-[#0789B7]"
+                icon={<ShieldCheck className="w-4 h-4 text-[#0789B7]" aria-hidden="true" />}
               >
                 Chủ sự kiện
               </Button>
@@ -128,7 +170,8 @@ export const LoginPage: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuickFill('sv001')}
-                icon={<UserCheck className="w-4 h-4 text-emerald-600" />}
+                className="!border-[#DCE5EE] !text-[#25435E] hover:!bg-[#E5F4FC] hover:!border-[#0789B7]/40 hover:!text-[#0789B7]"
+                icon={<UserCheck className="w-4 h-4 text-[#0789B7]" aria-hidden="true" />}
               >
                 Sinh viên (K49)
               </Button>
@@ -136,6 +179,10 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <footer className="mt-8 text-center text-xs text-[#73899B]">
+        QNU EVENT · Hệ thống quản lý đăng ký và xác thực tham gia hoạt động · MVP · 2026
+      </footer>
     </div>
   );
 };
