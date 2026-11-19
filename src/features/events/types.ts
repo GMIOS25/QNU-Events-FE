@@ -102,6 +102,14 @@ export interface CheckInResponse {
   acceptedAt: string;
 }
 
+export interface AttendanceErrorDetails {
+  method?: string;
+  attemptCount?: number;
+  maxAttempts?: number;
+  remainingAttempts?: number;
+  canRetry?: boolean;
+}
+
 export interface HistoryItem {
   eventId: string;
   title: string;
