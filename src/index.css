@@ -1,13 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --qnu-surface: #FFFFFF;
+  --qnu-canvas: #F3F8FC;
+  --qnu-text: #25435E;
+  --qnu-muted: #73899B;
+  --qnu-border: #DCE5EE;
+  --qnu-primary: #0789B7;
+  --qnu-primary-hover: #087DB4;
+  --qnu-soft: #E5F4FC;
+  --qnu-danger: #B64D40;
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: var(--qnu-canvas);
+  color: var(--qnu-text);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }

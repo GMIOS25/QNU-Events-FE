@@ -6,11 +6,36 @@ import { apiClient, setTokenProvider, setOnUnauthorizedHandler } from '../../api
 const TOKEN_KEY = 'qnu_events_access_token';
 const USER_KEY = 'qnu_events_user_info';
 
+function readStoredToken(): string | null {
+  return sessionStorage.getItem(TOKEN_KEY) ?? localStorage.getItem(TOKEN_KEY);
+}
+
+function readStoredUser(): UserInfo | null {
+  const cached = sessionStorage.getItem(USER_KEY) ?? localStorage.getItem(USER_KEY);
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function writeStoredUser(userInfo: UserInfo) {
+  const serialized = JSON.stringify(userInfo);
+  if (sessionStorage.getItem(TOKEN_KEY)) {
+    sessionStorage.setItem(USER_KEY, serialized);
+  } else if (localStorage.getItem(TOKEN_KEY)) {
+    localStorage.setItem(USER_KEY, serialized);
+  }
+}
+
 interface AuthContextType {
   user: UserInfo | null;
   token: string | null;
   isLoading: boolean;
-  login: (loginId: string, password: string) => Promise<void>;
+  login: (loginId: string, password: string, remember?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   hasRole: (role: UserRole) => boolean;
   hasAnyRole: (roles: UserRole[]) => boolean;
@@ -19,21 +44,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(() => {
-    return sessionStorage.getItem(TOKEN_KEY);
-  });
+  const [token, setToken] = useState<string | null>(() => readStoredToken());
 
-  const [user, setUser] = useState<UserInfo | null>(() => {
-    const cached = sessionStorage.getItem(USER_KEY);
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
+  const [user, setUser] = useState<UserInfo | null>(() => readStoredUser());
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -42,6 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
   }, []);
 
   useEffect(() => {
@@ -61,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const userInfo = await apiClient<UserInfo>('/api/v1/auth/me');
         setUser(userInfo);
-        sessionStorage.setItem(USER_KEY, JSON.stringify(userInfo));
+        writeStoredUser(userInfo);
       } catch {
         clearSession();
       } finally {
@@ -72,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadUser();
   }, [token, clearSession]);
 
-  const login = async (loginId: string, password: string) => {
+  const login = async (loginId: string, password: string, remember = false) => {
     const res = await apiClient<LoginResponse>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ loginId, password }),
@@ -80,8 +95,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setToken(res.accessToken);
     setUser(res.user);
-    sessionStorage.setItem(TOKEN_KEY, res.accessToken);
-    sessionStorage.setItem(USER_KEY, JSON.stringify(res.user));
+
+    if (remember) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(USER_KEY);
+      localStorage.setItem(TOKEN_KEY, res.accessToken);
+      localStorage.setItem(USER_KEY, JSON.stringify(res.user));
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      sessionStorage.setItem(TOKEN_KEY, res.accessToken);
+      sessionStorage.setItem(USER_KEY, JSON.stringify(res.user));
+    }
   };
 
   const logout = async () => {
