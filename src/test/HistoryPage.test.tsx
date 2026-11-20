@@ -1,10 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { HistoryPage } from '../features/history';
 import * as eventsApi from '../api/events';
-import type { HistoryItem } from '../features/events/types';
+import type { HistoryItem, Page } from '../features/events/types';
 
 vi.mock('../api/events', () => ({
   fetchHistory: vi.fn(),
@@ -30,7 +30,14 @@ describe('HistoryPage component', () => {
   });
 
   it('renders empty state when student has no event registrations', async () => {
-    vi.mocked(eventsApi.fetchHistory).mockResolvedValueOnce([]);
+    const emptyPage: Page<HistoryItem> = {
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      size: 20,
+      number: 0,
+    };
+    vi.mocked(eventsApi.fetchHistory).mockResolvedValueOnce(emptyPage);
 
     renderHistoryPage();
 
@@ -67,7 +74,15 @@ describe('HistoryPage component', () => {
       },
     ];
 
-    vi.mocked(eventsApi.fetchHistory).mockResolvedValueOnce(mockHistory);
+    const mockPage: Page<HistoryItem> = {
+      content: mockHistory,
+      totalElements: 2,
+      totalPages: 1,
+      size: 20,
+      number: 0,
+    };
+
+    vi.mocked(eventsApi.fetchHistory).mockResolvedValueOnce(mockPage);
 
     renderHistoryPage();
 
@@ -80,8 +95,53 @@ describe('HistoryPage component', () => {
     expect(screen.getByText('1')).toBeInTheDocument(); // total attended
     expect(screen.getByText('+10 đ')).toBeInTheDocument(); // accumulated points
 
-    // Check status badges
-    expect(screen.getAllByText('Đã điểm danh')).toHaveLength(2);
-    expect(screen.getByText('Chưa điểm danh')).toBeInTheDocument();
+    // Check status badges:
+    // 'Đã điểm danh': 1 in KPI card, 1 in filter dropdown option, 1 in event item badge
+    expect(screen.getAllByText('Đã điểm danh')).toHaveLength(3);
+    // 'Chưa điểm danh': 1 in filter dropdown option, 1 in event item badge
+    expect(screen.getAllByText('Chưa điểm danh')).toHaveLength(2);
+  });
+
+  it('filters history by attendance status and supports pagination', async () => {
+    const pagedResponse: Page<HistoryItem> = {
+      content: [
+        {
+          eventId: 'evt-1',
+          title: 'Hội thảo Kỹ thuật Phần mềm',
+          startAt: '2026-11-15T09:00:00Z',
+          location: 'Hội trường B',
+          registrationStatus: 'REGISTERED',
+          registeredAt: '2026-11-10T08:00:00Z',
+          attendanceStatus: 'ACCEPTED',
+          attendanceAt: '2026-11-15T09:10:00Z',
+          method: 'DYNAMIC_QR',
+          activityType: 'Hội thảo',
+          activityPoints: 10,
+        },
+      ],
+      totalElements: 25,
+      totalPages: 2,
+      size: 20,
+      number: 0,
+    };
+
+    vi.mocked(eventsApi.fetchHistory).mockResolvedValue(pagedResponse);
+
+    renderHistoryPage();
+
+    expect(await screen.findByText('Hội thảo Kỹ thuật Phần mềm')).toBeInTheDocument();
+    expect(screen.getByText(/Trang/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sau/i })).toBeInTheDocument();
+
+    // Trigger filter change
+    const select = screen.getByLabelText(/Trạng thái điểm danh/i);
+    fireEvent.change(select, { target: { value: 'ACCEPTED' } });
+
+    expect(eventsApi.fetchHistory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attendanceStatus: 'ACCEPTED',
+        page: 0,
+      })
+    );
   });
 });
