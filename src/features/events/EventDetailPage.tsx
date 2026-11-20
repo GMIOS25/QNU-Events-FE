@@ -20,6 +20,8 @@ import {
   Send,
   Clock,
   CheckCircle2,
+  AlertCircle,
+  GraduationCap,
 } from 'lucide-react';
 import type { PreviewResponse } from './types';
 
@@ -180,7 +182,7 @@ export const EventDetailPage: React.FC = () => {
         )}
 
         {/* Event Key Facts Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4 border-y border-slate-100 my-6 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 py-4 border-y border-slate-100 my-6 text-sm">
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
               <Calendar className="w-4 h-4" />
@@ -205,6 +207,18 @@ export const EventDetailPage: React.FC = () => {
 
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+              <AlertCircle className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 font-medium">Hạn chót đăng ký</p>
+              <p className="font-semibold text-slate-900 mt-0.5">
+                {formatDateTime(event.registrationDeadline)}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
               <Clock className="w-4 h-4" />
             </div>
             <div>
@@ -222,8 +236,43 @@ export const EventDetailPage: React.FC = () => {
             <div>
               <p className="text-xs text-slate-500 font-medium">Quy mô sự kiện</p>
               <p className="font-semibold text-slate-900 mt-0.5">
-                {event.registeredCount}/{event.quotaTotal} suất đã đăng ký
+                {event.registeredCount}/{event.quotaTotal} suất (còn {event.remainingQuota} chỗ)
               </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+              <GraduationCap className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 font-medium">Đối tượng tham gia</p>
+              {event.audienceClasses && event.audienceClasses.length > 0 ? (
+                <div className="mt-1">
+                  <div className="flex flex-wrap gap-1.5">
+                    {event.audienceClasses.map((cls) => (
+                      <span
+                        key={cls.id}
+                        title={cls.name}
+                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200"
+                      >
+                        {cls.code}
+                      </span>
+                    ))}
+                  </div>
+                  {event.eligible !== undefined && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      {event.eligible ? '✓ Lớp bạn đủ điều kiện tham gia' : '✕ Lớp bạn không thuộc đối tượng tham gia'}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="font-semibold text-slate-900 mt-0.5">
+                  {isOwner
+                    ? `${event.audienceClassIds?.length || 0} lớp được phân quyền`
+                    : 'Dành cho các lớp được phân công (bao gồm lớp bạn)'}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -265,6 +314,12 @@ export const EventDetailPage: React.FC = () => {
               <p>• <strong>Cửa sổ điểm danh:</strong> {formatDateTime(previewData.event.attendanceOpenAt)} - {formatDateTime(previewData.event.attendanceCloseAt)}</p>
               <p>• <strong>Điểm rèn luyện:</strong> +{previewData.event.activityPoints} điểm ({previewData.event.activityType})</p>
               <p>• <strong>Chu kỳ mã QR:</strong> Xoay vòng mỗi {previewData.event.qrRotationSeconds}s</p>
+              <p>
+                • <strong>Đối tượng tham gia:</strong>{' '}
+                {previewData.event.audienceClasses && previewData.event.audienceClasses.length > 0
+                  ? previewData.event.audienceClasses.map((c) => c.code).join(', ')
+                  : `${previewData.event.audienceClassIds?.length || 0} lớp được phân quyền`}
+              </p>
             </div>
 
             <label className="flex items-start gap-3 p-3 bg-blue-50/60 border border-blue-200 rounded-xl cursor-pointer">

@@ -1,3 +1,22 @@
+export const COMMON_ACTIVITY_TYPES = [
+  'Hội thảo khoa học',
+  'Hội thảo học thuật',
+  'Workshop',
+  'Tình nguyện xã hội',
+  'Phong trào Đoàn - Hội',
+  'Văn hóa - Văn nghệ',
+  'Thể dục - Thể thao',
+  'Nghiên cứu khoa học',
+] as const;
+
+export type CommonActivityType = (typeof COMMON_ACTIVITY_TYPES)[number];
+
+export interface EventAudienceClass {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export interface EventUpsert {
   title: string;
   description?: string;
@@ -42,6 +61,8 @@ export interface EventDetail extends EventSummary {
   qrGraceSeconds: number;
   ownerId: string;
   audienceClassIds: string[];
+  audienceClasses?: EventAudienceClass[];
+  eligible?: boolean;
   version: number;
   previewedVersion?: number;
   publishedAt?: string;
@@ -63,6 +84,13 @@ export interface OrgClass {
   name: string;
   faculty: string;
   cohort: string;
+}
+
+export interface EventQueryParams {
+  q?: string;
+  activityType?: string;
+  page?: number;
+  size?: number;
 }
 
 export interface Page<T> {

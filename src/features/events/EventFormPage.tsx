@@ -6,7 +6,7 @@ import { Button } from '../../components/Button';
 import { Field } from '../../components/Field';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ArrowLeft, Save, Calendar, Users, Award } from 'lucide-react';
-import type { EventUpsert } from './types';
+import { type EventUpsert, COMMON_ACTIVITY_TYPES } from './types';
 
 export const EventFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -281,13 +281,21 @@ export const EventFormPage: React.FC = () => {
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field
-                label="Loại hoạt động rèn luyện"
-                placeholder="VD: Hội thảo khoa học, Hoạt động tình nguyện..."
-                value={activityType}
-                onChange={(e) => setActivityType(e.target.value)}
-                required
-              />
+              <div>
+                <Field
+                  label="Loại hoạt động rèn luyện"
+                  placeholder="VD: Hội thảo khoa học, Hoạt động tình nguyện..."
+                  value={activityType}
+                  onChange={(e) => setActivityType(e.target.value)}
+                  list="common-activity-types"
+                  required
+                />
+                <datalist id="common-activity-types">
+                  {COMMON_ACTIVITY_TYPES.map((type) => (
+                    <option key={type} value={type} />
+                  ))}
+                </datalist>
+              </div>
 
               <Field
                 label="Điểm rèn luyện cộng thêm"
