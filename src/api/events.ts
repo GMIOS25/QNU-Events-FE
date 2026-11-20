@@ -8,6 +8,7 @@ import type {
   PublishRequest,
   OrgClass,
   Page,
+  EventQueryParams,
   RegistrationResponse,
   MyRegistrationResponse,
   EventQrResponse,
@@ -15,9 +16,10 @@ import type {
   HistoryItem,
 } from '../features/events/types';
 
-export async function fetchEvents(params?: { q?: string; page?: number; size?: number }): Promise<Page<EventSummary>> {
+export async function fetchEvents(params?: EventQueryParams): Promise<Page<EventSummary>> {
   const query = new URLSearchParams();
   if (params?.q) query.set('q', params.q);
+  if (params?.activityType) query.set('activityType', params.activityType);
   if (params?.page !== undefined) query.set('page', params.page.toString());
   if (params?.size !== undefined) query.set('size', params.size.toString());
 

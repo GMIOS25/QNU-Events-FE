@@ -65,6 +65,13 @@ export interface OrgClass {
   cohort: string;
 }
 
+export interface EventQueryParams {
+  q?: string;
+  activityType?: string;
+  page?: number;
+  size?: number;
+}
+
 export interface Page<T> {
   content: T[];
   totalElements: number;
