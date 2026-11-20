@@ -103,4 +103,23 @@ describe('EventDetailPage component [QE-31]', () => {
       await screen.findByText('Không tìm thấy sự kiện hoặc bạn không có quyền xem sự kiện này.')
     ).toBeInTheDocument();
   });
+
+  it('renders audienceClasses code tags and eligible status when available (QE-37)', async () => {
+    const detailWithAudienceClasses: EventDetail = {
+      ...mockDetail,
+      audienceClasses: [
+        { id: 'c-1', code: 'K49CNTT1', name: 'Công nghệ thông tin K49 A' },
+        { id: 'c-2', code: 'K49CNTT2', name: 'Công nghệ thông tin K49 B' },
+      ],
+      eligible: true,
+    };
+    vi.mocked(eventsApi.fetchEvent).mockResolvedValueOnce(detailWithAudienceClasses);
+
+    renderEventDetailPage();
+
+    expect(await screen.findByText('K49CNTT1')).toBeInTheDocument();
+    expect(screen.getByText('K49CNTT2')).toBeInTheDocument();
+    expect(screen.getByText(/Lớp bạn đủ điều kiện tham gia/i)).toBeInTheDocument();
+  });
 });
+

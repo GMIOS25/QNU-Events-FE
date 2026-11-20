@@ -114,8 +114,11 @@ describe('EventsPage component [QE-31]', () => {
 
     expect(await screen.findByText('Hội thảo Trí tuệ Nhân tạo')).toBeInTheDocument();
 
-    // Change activity type filter
+    // Verify COMMON_ACTIVITY_TYPES includes default activity type 'Hội thảo khoa học'
     const select = screen.getByLabelText(/Loại hoạt động/i);
+    expect(screen.getByRole('option', { name: 'Hội thảo khoa học' })).toBeInTheDocument();
+
+    // Change activity type filter
     fireEvent.change(select, { target: { value: 'Hội thảo học thuật' } });
 
     expect(eventsApi.fetchEvents).toHaveBeenCalledWith(
@@ -180,3 +183,4 @@ describe('EventsPage component [QE-31]', () => {
     );
   });
 });
+

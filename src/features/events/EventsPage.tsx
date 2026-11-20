@@ -20,15 +20,7 @@ import {
   Filter,
   RotateCcw,
 } from 'lucide-react';
-
-const COMMON_ACTIVITY_TYPES = [
-  'Hội thảo học thuật',
-  'Tình nguyện xã hội',
-  'Phong trào Đoàn - Hội',
-  'Văn hóa - Văn nghệ',
-  'Thể dục - Thể thao',
-  'Nghiên cứu khoa học',
-];
+import { COMMON_ACTIVITY_TYPES } from './types';
 
 export const EventsPage: React.FC = () => {
   const { hasRole } = useAuth();
