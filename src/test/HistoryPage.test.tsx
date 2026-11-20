@@ -37,7 +37,7 @@ describe('HistoryPage component', () => {
       size: 20,
       number: 0,
     };
-    vi.mocked(eventsApi.fetchHistory).mockResolvedValueOnce(emptyPage);
+    vi.mocked(eventsApi.fetchHistory).mockResolvedValue(emptyPage);
 
     renderHistoryPage();
 
@@ -82,7 +82,7 @@ describe('HistoryPage component', () => {
       number: 0,
     };
 
-    vi.mocked(eventsApi.fetchHistory).mockResolvedValueOnce(mockPage);
+    vi.mocked(eventsApi.fetchHistory).mockResolvedValue(mockPage);
 
     renderHistoryPage();
 
@@ -143,5 +143,44 @@ describe('HistoryPage component', () => {
         page: 0,
       })
     );
+  });
+
+  it('controls semester dropdown based on academicYear and includes Semester 3 (Summer)', async () => {
+    const emptyPage: Page<HistoryItem> = {
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      size: 20,
+      number: 0,
+    };
+    vi.mocked(eventsApi.fetchHistory).mockResolvedValue(emptyPage);
+
+    renderHistoryPage();
+
+    const semesterSelect = screen.getByLabelText(/Học kỳ/i) as HTMLSelectElement;
+    expect(semesterSelect).toBeDisabled();
+    expect(screen.getByText(/Cần nhập năm học/i)).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Học kỳ 3 \(Hè\)/i })).toBeInTheDocument();
+
+    // Type academic year
+    const yearInput = screen.getByLabelText(/Năm học/i);
+    fireEvent.change(yearInput, { target: { value: '2026-2027' } });
+
+    expect(semesterSelect).not.toBeDisabled();
+    expect(screen.queryByText(/Cần nhập năm học/i)).not.toBeInTheDocument();
+  });
+
+  it('renders error state with retry button on API failure', async () => {
+    vi.mocked(eventsApi.fetchHistory).mockRejectedValueOnce(new Error('Network error'));
+
+    renderHistoryPage();
+
+    expect(await screen.findByText(/Không thể tải dữ liệu lịch sử sự kiện/i)).toBeInTheDocument();
+    const retryBtn = screen.getByRole('button', { name: /Thử lại/i });
+    expect(retryBtn).toBeInTheDocument();
+
+    // When clicking retry, both queries (pageData and summaryData) are refetched
+    fireEvent.click(retryBtn);
+    expect(eventsApi.fetchHistory).toHaveBeenCalledTimes(4); // 2 initial + 2 retried
   });
 });

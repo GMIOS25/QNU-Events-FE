@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchHistory } from '../../api/events';
 import type { HistoryFilterParams } from '../events/types';
@@ -18,39 +18,79 @@ import {
   ChevronLeft,
   ChevronRight,
   RotateCcw,
+  RefreshCw,
 } from 'lucide-react';
 
 export const HistoryPage: React.FC = () => {
   const [attendanceStatus, setAttendanceStatus] = useState<string>('ALL');
   const [upcoming, setUpcoming] = useState<string>('ALL');
   const [academicYear, setAcademicYear] = useState<string>('');
+  const [debouncedYear, setDebouncedYear] = useState<string>('');
   const [semester, setSemester] = useState<string>('ALL');
   const [activityType, setActivityType] = useState<string>('');
+  const [debouncedActivityType, setDebouncedActivityType] = useState<string>('');
   const [page, setPage] = useState<number>(0);
+
+  // Debounce academicYear and activityType inputs (~350ms) to avoid firing API requests on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedYear(academicYear);
+      setDebouncedActivityType(activityType);
+      setPage(0);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [academicYear, activityType]);
 
   const queryParams: HistoryFilterParams = {
     page,
     size: 20,
     attendanceStatus: attendanceStatus !== 'ALL' ? attendanceStatus : undefined,
     upcoming: upcoming === 'true' ? true : upcoming === 'false' ? false : undefined,
-    academicYear: academicYear.trim() || undefined,
-    semester: semester !== 'ALL' ? Number(semester) : undefined,
-    activityType: activityType.trim() || undefined,
+    academicYear: debouncedYear.trim() || undefined,
+    semester: debouncedYear.trim() && semester !== 'ALL' ? Number(semester) : undefined,
+    activityType: debouncedActivityType.trim() || undefined,
   };
 
-  const { data: pageData, isLoading, error } = useQuery({
+  // Query cho danh sách lịch sử theo bộ lọc và phân trang
+  const {
+    data: pageData,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ['history', queryParams],
     queryFn: () => fetchHistory(queryParams),
+  });
+
+  // Query cho tổng quan KPI tích lũy (không bị phụ thuộc vào bộ lọc trang hiện tại)
+  const {
+    data: summaryData,
+    refetch: refetchSummary,
+  } = useQuery({
+    queryKey: ['history-summary'],
+    queryFn: () => fetchHistory({ size: 1000 }),
+    staleTime: 30000,
   });
 
   const historyItems = pageData?.content ?? [];
   const totalElements = pageData?.totalElements ?? historyItems.length;
   const totalPages = pageData?.totalPages ?? 0;
-  const totalRegistered = totalElements;
-  const totalAttended = historyItems.filter((item) => item.attendanceStatus === 'ACCEPTED').length;
-  const totalPoints = historyItems
-    .filter((item) => item.attendanceStatus === 'ACCEPTED')
-    .reduce((sum, item) => sum + (item.activityPoints || 0), 0);
+
+  // Dữ liệu KPI tích lũy toàn bộ
+  const allSummaryItems = summaryData?.content ?? [];
+  const totalRegistered = summaryData?.totalElements ?? totalElements;
+  const totalAttended = summaryData
+    ? allSummaryItems.filter((item) => item.attendanceStatus === 'ACCEPTED').length
+    : historyItems.filter((item) => item.attendanceStatus === 'ACCEPTED').length;
+  const totalPoints = summaryData
+    ? allSummaryItems
+        .filter((item) => item.attendanceStatus === 'ACCEPTED')
+        .reduce((sum, item) => sum + (item.activityPoints || 0), 0)
+    : historyItems
+        .filter((item) => item.attendanceStatus === 'ACCEPTED')
+        .reduce((sum, item) => sum + (item.activityPoints || 0), 0);
+
+  const isYearEntered = Boolean(academicYear.trim());
 
   const hasActiveFilters =
     attendanceStatus !== 'ALL' ||
@@ -63,14 +103,31 @@ export const HistoryPage: React.FC = () => {
     setAttendanceStatus('ALL');
     setUpcoming('ALL');
     setAcademicYear('');
+    setDebouncedYear('');
     setSemester('ALL');
     setActivityType('');
+    setDebouncedActivityType('');
     setPage(0);
   };
 
-  const handleFilterChange = (setter: (val: string) => void) => (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
+  const handleYearChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setAcademicYear(val);
+    if (!val.trim()) {
+      setSemester('ALL');
+    }
+  };
+
+  const handleFilterChange = (setter: (val: string) => void) => (
+    e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>
+  ) => {
     setter(e.target.value);
     setPage(0);
+  };
+
+  const handleRetry = () => {
+    refetch();
+    refetchSummary();
   };
 
   return (
@@ -140,7 +197,7 @@ export const HistoryPage: React.FC = () => {
               id="filter-attendance"
               value={attendanceStatus}
               onChange={handleFilterChange(setAttendanceStatus)}
-              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
             >
               <option value="ALL">Tất cả trạng thái</option>
               <option value="ACCEPTED">Đã điểm danh</option>
@@ -156,7 +213,7 @@ export const HistoryPage: React.FC = () => {
               id="filter-upcoming"
               value={upcoming}
               onChange={handleFilterChange(setUpcoming)}
-              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
             >
               <option value="ALL">Tất cả thời gian</option>
               <option value="true">Sắp diễn ra</option>
@@ -173,24 +230,32 @@ export const HistoryPage: React.FC = () => {
               type="text"
               placeholder="VD: 2026-2027"
               value={academicYear}
-              onChange={handleFilterChange(setAcademicYear)}
+              onChange={handleYearChange}
               className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           <div>
-            <label htmlFor="filter-semester" className="block text-xs font-medium text-slate-600 mb-1">
-              Học kỳ
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor="filter-semester" className="block text-xs font-medium text-slate-600">
+                Học kỳ
+              </label>
+              {!isYearEntered && (
+                <span className="text-[10px] text-amber-600 font-normal">Cần nhập năm học</span>
+              )}
+            </div>
             <select
               id="filter-semester"
               value={semester}
+              disabled={!isYearEntered}
               onChange={handleFilterChange(setSemester)}
-              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              title={!isYearEntered ? 'Vui lòng nhập năm học trước khi chọn học kỳ' : ''}
+              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
             >
               <option value="ALL">Tất cả học kỳ</option>
               <option value="1">Học kỳ 1</option>
               <option value="2">Học kỳ 2</option>
+              <option value="3">Học kỳ 3 (Hè)</option>
             </select>
           </div>
 
@@ -216,8 +281,20 @@ export const HistoryPage: React.FC = () => {
           Đang tải lịch sử tham gia sự kiện...
         </div>
       ) : error ? (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-6 text-sm">
-          Không thể tải dữ liệu lịch sử sự kiện. Vui lòng thử lại sau.
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-6 text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+          <div className="space-y-1">
+            <p className="font-semibold text-red-800">Không thể tải dữ liệu lịch sử sự kiện</p>
+            <p className="text-xs text-red-600">Đã xảy ra lỗi khi kết nối đến máy chủ. Vui lòng thử lại sau.</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRetry}
+            icon={<RefreshCw className="w-3.5 h-3.5" />}
+            className="shrink-0 bg-white border-red-300 text-red-700 hover:bg-red-100 hover:text-red-900 cursor-pointer"
+          >
+            Thử lại
+          </Button>
         </div>
       ) : historyItems && historyItems.length > 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">

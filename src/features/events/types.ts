@@ -148,7 +148,6 @@ export interface HistoryFilterParams {
   size?: number;
   sort?: string;
 }
-}
 
 export interface HistoryItem {
   eventId: string;

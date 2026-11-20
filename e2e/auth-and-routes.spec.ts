@@ -93,25 +93,31 @@ test.describe('Authentication & Access Control', () => {
       });
     });
 
-    await page.route('**/api/v1/me/history', async (route) => {
+    await page.route('**/api/v1/me/history*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([
-          {
-            eventId: 'evt-101',
-            title: 'Hội thảo AI Đại học Quy Nhơn',
-            startAt: '2026-11-15T09:00:00Z',
-            location: 'Hội trường B',
-            registrationStatus: 'REGISTERED',
-            registeredAt: '2026-11-10T08:00:00Z',
-            attendanceStatus: 'ACCEPTED',
-            attendanceAt: '2026-11-15T09:10:00Z',
-            method: 'DYNAMIC_QR',
-            activityType: 'Hội thảo',
-            activityPoints: 10,
-          },
-        ]),
+        body: JSON.stringify({
+          content: [
+            {
+              eventId: 'evt-101',
+              title: 'Hội thảo AI Đại học Quy Nhơn',
+              startAt: '2026-11-15T09:00:00Z',
+              location: 'Hội trường B',
+              registrationStatus: 'REGISTERED',
+              registeredAt: '2026-11-10T08:00:00Z',
+              attendanceStatus: 'ACCEPTED',
+              attendanceAt: '2026-11-15T09:10:00Z',
+              method: 'DYNAMIC_QR',
+              activityType: 'Hội thảo',
+              activityPoints: 10,
+            },
+          ],
+          totalElements: 1,
+          totalPages: 1,
+          size: 20,
+          number: 0,
+        }),
       });
     });
 
