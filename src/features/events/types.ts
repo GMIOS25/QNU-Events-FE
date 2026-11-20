@@ -138,6 +138,17 @@ export interface AttendanceErrorDetails {
   canRetry?: boolean;
 }
 
+export interface HistoryFilterParams {
+  academicYear?: string;
+  semester?: number;
+  attendanceStatus?: string;
+  upcoming?: boolean;
+  activityType?: string;
+  page?: number;
+  size?: number;
+  sort?: string;
+}
+
 export interface HistoryItem {
   eventId: string;
   title: string;
