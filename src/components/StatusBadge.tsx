@@ -6,6 +6,10 @@ export type StatusType =
   | 'PUBLISHED'
   | 'CANCELLED'
   | 'REGISTERED'
+  | 'WAITING_LIST'
+  | 'NO_SHOW'
+  | 'ACCEPTED'
+  | 'NOT_CHECKED_IN'
   | 'ATTENDED'
   | 'ABSENT'
   | 'ACTIVE'
@@ -48,6 +52,20 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = ''
       bg: 'bg-blue-50',
       text: 'text-blue-800',
       border: 'border-blue-200',
+    },
+    WAITING_LIST: {
+      label: 'Danh sách chờ',
+      icon: <Clock className="w-3.5 h-3.5 text-violet-600" aria-hidden="true" />,
+      bg: 'bg-violet-50',
+      text: 'text-violet-800',
+      border: 'border-violet-200',
+    },
+    NO_SHOW: {
+      label: 'Vắng mặt (no-show)',
+      icon: <AlertCircle className="w-3.5 h-3.5 text-rose-600" aria-hidden="true" />,
+      bg: 'bg-rose-50',
+      text: 'text-rose-800',
+      border: 'border-rose-200',
     },
     ACCEPTED: {
       label: 'Đã điểm danh',

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import type { UserInfo, UserRole, LoginResponse } from './types';
 import { apiClient, setTokenProvider, setOnUnauthorizedHandler } from '../../api/client';
 
@@ -50,6 +51,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  const queryClient = useQueryClient();
+
   const clearSession = useCallback(() => {
     setToken(null);
     setUser(null);
@@ -57,7 +60,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sessionStorage.removeItem(USER_KEY);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-  }, []);
+    // Xóa dữ liệu đã cache của phiên trước (lịch sử, đăng ký...) để người đăng nhập sau
+    // trên cùng thiết bị không thấy dữ liệu của người khác (UC021 A3).
+    queryClient.clear();
+  }, [queryClient]);
 
   useEffect(() => {
     setTokenProvider(() => token);
@@ -93,6 +99,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify({ loginId, password }),
     });
 
+    // Phiên mới không được dùng lại cache của phiên cũ (kể cả khi phiên cũ hết hạn mà chưa logout).
+    queryClient.clear();
     setToken(res.accessToken);
     setUser(res.user);
 

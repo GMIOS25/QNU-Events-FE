@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchHistory } from '../../api/events';
-import type { HistoryFilterParams } from '../events/types';
+import type { HistoryFilterParams, HistoryItem } from '../events/types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { EmptyState } from '../../components/EmptyState';
 import { Button } from '../../components/Button';
@@ -20,6 +20,15 @@ import {
   RotateCcw,
   RefreshCw,
 } from 'lucide-react';
+
+const ATTENDANCE_METHOD_LABELS: Record<HistoryItem['method'], string> = {
+  DYNAMIC_QR: 'QR động',
+  GPS: 'GPS',
+  EVIDENCE: 'Minh chứng',
+  OFFLINE_QR: 'QR ngoại tuyến',
+  OFFLINE_GPS: 'GPS ngoại tuyến',
+  PROXY_EVIDENCE: 'Điểm danh thay (minh chứng)',
+};
 
 export const HistoryPage: React.FC = () => {
   const [attendanceStatus, setAttendanceStatus] = useState<string>('ALL');
@@ -62,12 +71,14 @@ export const HistoryPage: React.FC = () => {
     queryFn: () => fetchHistory(queryParams),
   });
 
-  // Query cho tổng quan KPI tích lũy (không bị phụ thuộc vào bộ lọc trang hiện tại)
+  // Query cho tổng quan KPI tích lũy (không bị phụ thuộc vào bộ lọc trang hiện tại).
+  // Đặt dưới tiền tố ['history'] để invalidateQueries({ queryKey: ['history'] }) sau khi
+  // đăng ký / điểm danh cũng làm mới KPI.
   const {
     data: summaryData,
     refetch: refetchSummary,
   } = useQuery({
-    queryKey: ['history-summary'],
+    queryKey: ['history', 'summary'],
     queryFn: () => fetchHistory({ size: 1000 }),
     staleTime: 30000,
   });
@@ -303,14 +314,23 @@ export const HistoryPage: React.FC = () => {
               <div key={item.eventId} className="p-5 sm:p-6 hover:bg-slate-50/60 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        to={`/events/${item.eventId}`}
-                        className="text-base font-semibold text-slate-900 hover:text-blue-600 transition-colors"
-                      >
-                        {item.title}
-                      </Link>
-                      <StatusBadge status={item.attendanceStatus} />
+                    <Link
+                      to={`/events/${item.eventId}`}
+                      className="text-base font-semibold text-slate-900 hover:text-blue-600 transition-colors"
+                    >
+                      {item.title}
+                    </Link>
+
+                    {/* REQ-REV-008: trạng thái đăng ký và trạng thái điểm danh hiển thị riêng biệt */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-600">
+                      <span className="flex items-center gap-1.5">
+                        <span>Đăng ký:</span>
+                        <StatusBadge status={item.registrationStatus} />
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span>Điểm danh:</span>
+                        <StatusBadge status={item.attendanceStatus} />
+                      </span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
@@ -322,19 +342,31 @@ export const HistoryPage: React.FC = () => {
                         <MapPin className="w-3.5 h-3.5 text-slate-400" />
                         {item.location}
                       </span>
-                      {item.attendanceAt && (
+                      <span>Đăng ký lúc: {formatDateTime(item.registeredAt)}</span>
+                      {/* REQ-REV-009: phương thức + thời điểm ghi nhận; chỉ hiện khi đã có điểm danh
+                          (BE hiện trả method mặc định cho dòng chưa điểm danh). */}
+                      {item.attendanceStatus === 'ACCEPTED' && item.attendanceAt && (
                         <span className="text-emerald-700 font-medium">
-                          Điểm danh lúc: {formatDateTime(item.attendanceAt)}
+                          Điểm danh lúc: {formatDateTime(item.attendanceAt)} ·{' '}
+                          {ATTENDANCE_METHOD_LABELS[item.method] ?? item.method}
                         </span>
                       )}
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                      <Award className="w-3.5 h-3.5 text-amber-600" />
-                      +{item.activityPoints} điểm ({item.activityType})
-                    </span>
+                    {item.attendanceStatus === 'ACCEPTED' ? (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                        <Award className="w-3.5 h-3.5 text-amber-600" />
+                        +{item.activityPoints} điểm ({item.activityType})
+                      </span>
+                    ) : (
+                      // Chưa điểm danh hợp lệ thì không trình bày như điểm đã đạt được.
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
+                        <Award className="w-3.5 h-3.5 text-slate-400" />
+                        {item.activityPoints} điểm ({item.activityType})
+                      </span>
+                    )}
 
                     <Link to={`/events/${item.eventId}`}>
                       <Button variant="ghost" size="sm">

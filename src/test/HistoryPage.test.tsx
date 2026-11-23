@@ -15,13 +15,18 @@ function renderHistoryPage() {
     defaultOptions: { queries: { retry: false } },
   });
 
-  return render(
+  const utils = render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         <HistoryPage />
       </MemoryRouter>
     </QueryClientProvider>
   );
+  return { ...utils, queryClient };
+}
+
+function pageOf(items: HistoryItem[]): Page<HistoryItem> {
+  return { content: items, totalElements: items.length, totalPages: 1, size: 20, number: 0 };
 }
 
 describe('HistoryPage component', () => {
@@ -182,5 +187,78 @@ describe('HistoryPage component', () => {
     // When clicking retry, both queries (pageData and summaryData) are refetched
     fireEvent.click(retryBtn);
     expect(eventsApi.fetchHistory).toHaveBeenCalledTimes(4); // 2 initial + 2 retried
+  });
+
+  it('shows registration status separately from attendance status (REQ-REV-008)', async () => {
+    vi.mocked(eventsApi.fetchHistory).mockResolvedValue(
+      pageOf([
+        {
+          eventId: 'evt-cancelled',
+          title: 'Sự kiện đã hủy đăng ký',
+          startAt: '2026-11-20T08:00:00Z',
+          location: 'Phòng A1',
+          registrationStatus: 'CANCELLED',
+          registeredAt: '2026-11-10T08:00:00Z',
+          attendanceStatus: 'NOT_CHECKED_IN',
+          method: 'DYNAMIC_QR',
+          activityType: 'Hội thảo',
+          activityPoints: 7,
+        },
+      ])
+    );
+
+    renderHistoryPage();
+
+    expect(await screen.findByText('Sự kiện đã hủy đăng ký')).toBeInTheDocument();
+    expect(screen.getByText('Đã hủy')).toBeInTheDocument();
+    expect(screen.getByText('Đăng ký:')).toBeInTheDocument();
+    expect(screen.getByText('Điểm danh:')).toBeInTheDocument();
+    // Chưa điểm danh hợp lệ thì không hiển thị như điểm đã đạt (không có dấu +)
+    expect(screen.getByText('7 điểm (Hội thảo)')).toBeInTheDocument();
+    expect(screen.queryByText('+7 điểm (Hội thảo)')).not.toBeInTheDocument();
+    // Không hiện phương thức khi chưa có điểm danh
+    expect(screen.queryByText(/QR động/)).not.toBeInTheDocument();
+  });
+
+  it('shows attendance method and time only for accepted attendance (REQ-REV-009)', async () => {
+    vi.mocked(eventsApi.fetchHistory).mockResolvedValue(
+      pageOf([
+        {
+          eventId: 'evt-accepted',
+          title: 'Sự kiện đã điểm danh',
+          startAt: '2026-11-15T09:00:00Z',
+          location: 'Hội trường B',
+          registrationStatus: 'REGISTERED',
+          registeredAt: '2026-11-10T08:00:00Z',
+          attendanceStatus: 'ACCEPTED',
+          attendanceAt: '2026-11-15T09:10:00Z',
+          method: 'DYNAMIC_QR',
+          activityType: 'Hội thảo',
+          activityPoints: 10,
+        },
+      ])
+    );
+
+    renderHistoryPage();
+
+    expect(await screen.findByText(/Điểm danh lúc:.*QR động/)).toBeInTheDocument();
+    expect(screen.getByText(/Đăng ký lúc:/)).toBeInTheDocument();
+    expect(screen.getByText('+10 điểm (Hội thảo)')).toBeInTheDocument();
+  });
+
+  it('refreshes KPI summary when history queries are invalidated after check-in/registration', async () => {
+    vi.mocked(eventsApi.fetchHistory).mockResolvedValue(pageOf([]));
+
+    const { queryClient } = renderHistoryPage();
+    await screen.findByText(/Bạn chưa có lịch sử sự kiện nào/i);
+
+    const summaryCalls = () =>
+      vi.mocked(eventsApi.fetchHistory).mock.calls.filter(([params]) => params?.size === 1000).length;
+    expect(summaryCalls()).toBe(1);
+
+    // AttendanceSlot / RegistrationSlot gọi đúng lệnh này khi thành công
+    await queryClient.invalidateQueries({ queryKey: ['history'] });
+
+    expect(summaryCalls()).toBe(2);
   });
 });
