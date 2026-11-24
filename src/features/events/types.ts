@@ -82,8 +82,7 @@ export interface OrgClass {
   id: string;
   code: string;
   name: string;
-  faculty: string;
-  cohort: string;
+  facultyName: string;
 }
 
 export interface EventQueryParams {
@@ -104,7 +103,7 @@ export interface Page<T> {
 export interface RegistrationResponse {
   id: string;
   status: string;
-  cached: boolean;
+  alreadyRegistered: boolean;
 }
 
 export interface MyRegistrationResponse {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchEvent, fetchEventQr } from '../../api/events';
+import { ApiErrorException } from '../../api/client';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '../../components/Button';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -11,7 +12,7 @@ import { formatDateTime } from '../../lib/time';
 export const EventQrPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [copied, setCopied] = useState(false);
-  const [countdown, setCountdown] = useState(10);
+  const [tickNowMs, setTickNowMs] = useState(() => Date.now());
 
   const { data: event, isLoading: isLoadingEvent } = useQuery({
     queryKey: ['event', id],
@@ -21,6 +22,7 @@ export const EventQrPage: React.FC = () => {
 
   const {
     data: qrData,
+    dataUpdatedAt: qrUpdatedAt,
     isLoading: isLoadingQr,
     error: qrError,
     refetch,
@@ -28,23 +30,56 @@ export const EventQrPage: React.FC = () => {
     queryKey: ['event-qr', id],
     queryFn: () => fetchEventQr(id!),
     enabled: !!id,
-    refetchInterval: 9500, // Rotate every 9.5 seconds automatically
+    retry: (failureCount, error) => {
+      if (error instanceof ApiErrorException && [403, 404, 409].includes(error.status)) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    refetchInterval: (query) => {
+      const err = query.state.error;
+      if (err instanceof ApiErrorException && [403, 404, 409].includes(err.status)) {
+        return false;
+      }
+      const rotSeconds = query.state.data?.rotationSeconds ?? event?.qrRotationSeconds ?? 10;
+      return Math.max(2000, rotSeconds * 1000 - 500);
+    },
   });
 
-  // Countdown timer for next rotation
+  // Chỉ cập nhật mốc thời gian trong callback của interval (tránh setState đồng bộ trong effect)
   useEffect(() => {
+    if (!qrData) return;
     const interval = setInterval(() => {
-      setCountdown((prev) => (prev > 1 ? prev - 1 : 10));
+      setTickNowMs(Date.now());
     }, 1000);
-
     return () => clearInterval(interval);
-  }, [qrData?.epoch]);
+  }, [qrData]);
+
+  // Đồng bộ đếm ngược theo validUntil/serverTime thực tế từ máy chủ (BUG-09)
+  const countdown = (() => {
+    const rotSeconds = qrData?.rotationSeconds ?? event?.qrRotationSeconds ?? 10;
+    if (!qrData?.validUntil) return rotSeconds;
+    const validUntilMs = new Date(qrData.validUntil).getTime();
+    if (Number.isNaN(validUntilMs)) return rotSeconds;
+    const serverMs = qrData.serverTime ? new Date(qrData.serverTime).getTime() : NaN;
+    const baseClientMs = qrUpdatedAt || tickNowMs;
+    const clockSkewMs = Number.isNaN(serverMs) ? 0 : serverMs - baseClientMs;
+    const effectiveNowMs = Math.max(tickNowMs, baseClientMs) + clockSkewMs;
+    const remaining = Math.ceil((validUntilMs - effectiveNowMs) / 1000);
+    return Math.max(1, Math.min(rotSeconds, remaining));
+  })();
 
   const handleCopyToken = () => {
-    if (qrData?.token) {
-      navigator.clipboard.writeText(qrData.token);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    if (qrData?.token && navigator.clipboard?.writeText) {
+      navigator.clipboard
+        .writeText(qrData.token)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch(() => {
+          // Bỏ qua lỗi khi trình duyệt chặn Clipboard API ở môi trường không phải HTTPS
+        });
     }
   };
 
@@ -104,7 +139,12 @@ export const EventQrPage: React.FC = () => {
         {qrError ? (
           <div className="max-w-md w-full">
             <ErrorBanner
-              message="Không thể tạo mã QR điểm danh. Vui lòng kiểm tra xem sự kiện đã đến giờ điểm danh chưa hoặc liên hệ quản trị viên."
+              code={qrError instanceof ApiErrorException ? qrError.apiError.code : undefined}
+              message={
+                qrError instanceof ApiErrorException && qrError.apiError.message
+                  ? qrError.apiError.message
+                  : 'Không thể tạo mã QR điểm danh. Vui lòng kiểm tra xem sự kiện đã đến giờ điểm danh chưa hoặc liên hệ quản trị viên.'
+              }
             />
           </div>
         ) : isLoadingQr || isLoadingEvent ? (
