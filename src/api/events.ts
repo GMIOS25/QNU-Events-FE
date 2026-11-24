@@ -14,6 +14,7 @@ import type {
   EventQrResponse,
   CheckInResponse,
   HistoryItem,
+  HistoryFilterParams,
 } from '../features/events/types';
 
 export async function fetchEvents(params?: EventQueryParams): Promise<Page<EventSummary>> {
@@ -85,6 +86,17 @@ export async function checkInQr(eventId: string, token: string, key?: string): P
   });
 }
 
-export async function fetchHistory(): Promise<HistoryItem[]> {
-  return apiClient<HistoryItem[]>('/api/v1/me/history');
+export async function fetchHistory(params?: HistoryFilterParams): Promise<Page<HistoryItem>> {
+  const query = new URLSearchParams();
+  if (params?.academicYear) query.set('academicYear', params.academicYear);
+  if (params?.semester !== undefined) query.set('semester', params.semester.toString());
+  if (params?.attendanceStatus) query.set('attendanceStatus', params.attendanceStatus);
+  if (params?.upcoming !== undefined) query.set('upcoming', params.upcoming.toString());
+  if (params?.activityType) query.set('activityType', params.activityType);
+  if (params?.page !== undefined) query.set('page', params.page.toString());
+  if (params?.size !== undefined) query.set('size', params.size.toString());
+  if (params?.sort) query.set('sort', params.sort);
+
+  const qs = query.toString();
+  return apiClient<Page<HistoryItem>>(`/api/v1/me/history${qs ? `?${qs}` : ''}`);
 }

@@ -138,16 +138,29 @@ export interface AttendanceErrorDetails {
   canRetry?: boolean;
 }
 
+export interface HistoryFilterParams {
+  academicYear?: string;
+  semester?: number;
+  attendanceStatus?: string;
+  upcoming?: boolean;
+  activityType?: string;
+  page?: number;
+  size?: number;
+  sort?: string;
+}
+
 export interface HistoryItem {
   eventId: string;
   title: string;
   startAt: string;
   location: string;
-  registrationStatus: 'REGISTERED' | 'CANCELLED';
+  // Khớp CHECK constraint của bảng registrations (V1); WAITING_LIST/NO_SHOW dùng từ Sprint 2.
+  registrationStatus: 'REGISTERED' | 'WAITING_LIST' | 'CANCELLED' | 'NO_SHOW';
   registeredAt: string;
   attendanceStatus: 'NOT_CHECKED_IN' | 'ACCEPTED';
   attendanceAt?: string;
-  method: 'DYNAMIC_QR';
+  // Khớp CHECK constraint của bảng attendances (V1).
+  method: 'DYNAMIC_QR' | 'GPS' | 'EVIDENCE' | 'OFFLINE_QR' | 'OFFLINE_GPS' | 'PROXY_EVIDENCE';
   activityType: string;
   activityPoints: number;
 }
