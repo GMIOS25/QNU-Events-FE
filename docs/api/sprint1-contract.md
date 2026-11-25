@@ -82,7 +82,7 @@ interface EventUpsert {
   attendanceMethod: "DYNAMIC_QR";
   quotaTotal: number;            // >= 1
   audienceClassIds: string[];    // >= 1 uuid lớp hợp lệ
-  activityType: string;
+  activityType: string;          // tối đa 50 ký tự
   activityPoints: number;        // >= 0
   version?: number;
 }
@@ -110,6 +110,12 @@ interface EventSummary {
 
 ### EventDetail (kế thừa EventSummary và bổ sung)
 ```typescript
+interface EventAudienceClass {
+  id: string;
+  code: string;
+  name: string;
+}
+
 interface EventDetail extends EventSummary {
   description?: string;
   registrationDeadline: string;
@@ -120,6 +126,8 @@ interface EventDetail extends EventSummary {
   qrGraceSeconds: number;
   ownerId: string;
   audienceClassIds: string[];
+  audienceClasses: EventAudienceClass[]; // mã/tên lớp hiển thị trên UI (QE-37)
+  eligible: boolean;                     // server tính quyền tham gia theo lớp sinh viên (QE-37)
   version: number;
   previewedVersion?: number;
   publishedAt?: string;

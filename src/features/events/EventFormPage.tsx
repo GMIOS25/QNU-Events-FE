@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchEvent, createEvent, updateEvent, fetchClasses } from '../../api/events';
@@ -6,6 +6,7 @@ import { Button } from '../../components/Button';
 import { Field } from '../../components/Field';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ArrowLeft, Save, Calendar, Users, Award } from 'lucide-react';
+import { toLocalDateTimeInput } from '../../lib/time';
 import { type EventUpsert, COMMON_ACTIVITY_TYPES } from './types';
 
 export const EventFormPage: React.FC = () => {
@@ -24,11 +25,12 @@ export const EventFormPage: React.FC = () => {
   const [registrationDeadline, setRegistrationDeadline] = useState('');
   const [attendanceOpenAt, setAttendanceOpenAt] = useState('');
   const [attendanceCloseAt, setAttendanceCloseAt] = useState('');
-  const [quotaTotal, setQuotaTotal] = useState(50);
+  const [quotaTotal, setQuotaTotal] = useState('50');
   const [activityType, setActivityType] = useState('Hội thảo khoa học');
-  const [activityPoints, setActivityPoints] = useState(5);
+  const [activityPoints, setActivityPoints] = useState('5');
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
   const [version, setVersion] = useState<number | undefined>(undefined);
+  const hydratedEventKeyRef = useRef<string | null>(null);
 
   // Load Classes
   const { data: classes } = useQuery({
@@ -37,27 +39,32 @@ export const EventFormPage: React.FC = () => {
   });
 
   // Load existing event if editing
-  const { isLoading: isLoadingEvent } = useQuery({
+  const { data: existingEvent, isLoading: isLoadingEvent } = useQuery({
     queryKey: ['event', id],
-    queryFn: async () => {
-      const data = await fetchEvent(id!);
-      setTitle(data.title);
-      setDescription(data.description || '');
-      setLocation(data.location);
-      setStartAt(data.startAt ? data.startAt.slice(0, 16) : '');
-      setEndAt(data.endAt ? data.endAt.slice(0, 16) : '');
-      setRegistrationDeadline(data.registrationDeadline ? data.registrationDeadline.slice(0, 16) : '');
-      setAttendanceOpenAt(data.attendanceOpenAt ? data.attendanceOpenAt.slice(0, 16) : '');
-      setAttendanceCloseAt(data.attendanceCloseAt ? data.attendanceCloseAt.slice(0, 16) : '');
-      setQuotaTotal(data.quotaTotal);
-      setActivityType(data.activityType);
-      setActivityPoints(data.activityPoints);
-      setSelectedClassIds(data.audienceClassIds || []);
-      setVersion(data.version);
-      return data;
-    },
+    queryFn: () => fetchEvent(id!),
     enabled: isEdit,
   });
+
+  // Hydrate form state once per loaded event version (tránh setState trong queryFn và lệch múi giờ UTC, BUG-02)
+  useEffect(() => {
+    if (!isEdit || !existingEvent) return;
+    const key = `${existingEvent.id}:${existingEvent.version}`;
+    if (hydratedEventKeyRef.current === key) return;
+    hydratedEventKeyRef.current = key;
+    setTitle(existingEvent.title);
+    setDescription(existingEvent.description || '');
+    setLocation(existingEvent.location);
+    setStartAt(toLocalDateTimeInput(existingEvent.startAt));
+    setEndAt(toLocalDateTimeInput(existingEvent.endAt));
+    setRegistrationDeadline(toLocalDateTimeInput(existingEvent.registrationDeadline));
+    setAttendanceOpenAt(toLocalDateTimeInput(existingEvent.attendanceOpenAt));
+    setAttendanceCloseAt(toLocalDateTimeInput(existingEvent.attendanceCloseAt));
+    setQuotaTotal(String(existingEvent.quotaTotal));
+    setActivityType(existingEvent.activityType);
+    setActivityPoints(String(existingEvent.activityPoints));
+    setSelectedClassIds(existingEvent.audienceClassIds || []);
+    setVersion(existingEvent.version);
+  }, [isEdit, existingEvent]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -67,6 +74,20 @@ export const EventFormPage: React.FC = () => {
       }
       if (!location.trim()) {
         throw new Error('Vui lòng nhập địa điểm tổ chức.');
+      }
+      const parsedQuota = Number(quotaTotal);
+      if (!quotaTotal.trim() || !Number.isInteger(parsedQuota) || parsedQuota < 1) {
+        throw new Error('Chỉ tiêu số lượng tham gia phải là số nguyên tối thiểu từ 1.');
+      }
+      const parsedPoints = Number(activityPoints);
+      if (!activityPoints.trim() || !Number.isInteger(parsedPoints) || parsedPoints < 0) {
+        throw new Error('Điểm rèn luyện phải là số nguyên lớn hơn hoặc bằng 0.');
+      }
+      if (!activityType.trim()) {
+        throw new Error('Vui lòng nhập loại hoạt động rèn luyện.');
+      }
+      if (activityType.trim().length > 50) {
+        throw new Error('Loại hoạt động rèn luyện không vượt quá 50 ký tự.');
       }
       if (!startAt || !endAt) {
         throw new Error('Vui lòng chọn thời gian bắt đầu và kết thúc.');
@@ -83,6 +104,9 @@ export const EventFormPage: React.FC = () => {
       if (new Date(attendanceCloseAt) <= new Date(attendanceOpenAt)) {
         throw new Error('Thời gian đóng điểm danh phải sau thời gian mở điểm danh.');
       }
+      if (new Date(registrationDeadline) > new Date(attendanceCloseAt)) {
+        throw new Error('Hạn chót đăng ký phải trước hoặc bằng thời gian đóng điểm danh.');
+      }
       if (selectedClassIds.length === 0) {
         throw new Error('Vui lòng chọn ít nhất một lớp đối tượng được tham gia sự kiện.');
       }
@@ -97,10 +121,10 @@ export const EventFormPage: React.FC = () => {
         attendanceOpenAt: new Date(attendanceOpenAt).toISOString(),
         attendanceCloseAt: new Date(attendanceCloseAt).toISOString(),
         attendanceMethod: 'DYNAMIC_QR',
-        quotaTotal: Number(quotaTotal),
+        quotaTotal: parsedQuota,
         audienceClassIds: selectedClassIds,
         activityType: activityType.trim(),
-        activityPoints: Number(activityPoints),
+        activityPoints: parsedPoints,
       };
 
       if (isEdit && id) {
@@ -114,11 +138,15 @@ export const EventFormPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['event', saved.id] });
       navigate(`/events/${saved.id}`);
     },
-    onError: (err: any) => {
-      const code = err?.apiError?.code || err?.message;
-      let msg = err?.apiError?.message || err?.message || 'Không thể lưu sự kiện.';
+    onError: (err: unknown) => {
+      const apiErr = (err as { apiError?: { code?: string; message?: string; details?: { fields?: Record<string, string> } } })?.apiError;
+      const code = apiErr?.code || (err as Error)?.message;
+      let msg = apiErr?.message || (err as Error)?.message || 'Không thể lưu sự kiện.';
       if (code === 'VERSION_CONFLICT') {
         msg = 'Dữ liệu sự kiện đã bị thay đổi bởi người khác. Vui lòng tải lại trang và thử lại.';
+      } else if (apiErr?.details?.fields && Object.keys(apiErr.details.fields).length > 0) {
+        const fieldMessages = Object.values(apiErr.details.fields).join(' ');
+        msg = `${msg} (${fieldMessages})`;
       }
       setErrorMessage(msg);
     },
@@ -215,7 +243,7 @@ export const EventFormPage: React.FC = () => {
                 type="number"
                 min={1}
                 value={quotaTotal}
-                onChange={(e) => setQuotaTotal(Math.max(1, parseInt(e.target.value) || 1))}
+                onChange={(e) => setQuotaTotal(e.target.value)}
                 required
               />
             </div>
@@ -302,7 +330,7 @@ export const EventFormPage: React.FC = () => {
                 type="number"
                 min={0}
                 value={activityPoints}
-                onChange={(e) => setActivityPoints(Math.max(0, parseInt(e.target.value) || 0))}
+                onChange={(e) => setActivityPoints(e.target.value)}
                 required
               />
             </div>

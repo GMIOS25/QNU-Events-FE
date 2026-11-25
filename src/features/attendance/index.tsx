@@ -64,7 +64,7 @@ export const AttendanceSlot: React.FC<AttendanceSlotProps> = ({ eventId, event, 
         setCanRetry(false);
         setIsScannerOpen(false);
       } else if (code === 'QR_EXPIRED') {
-        msg = 'Mã QR đã hết hạn (xoay vòng 10 giây). Vui lòng quét lại mã đang hiển thị.';
+        msg = `Mã QR đã hết hạn (xoay vòng ${event?.qrRotationSeconds ?? 10} giây). Vui lòng quét lại mã đang hiển thị.`;
       } else if (code === 'QR_BAD_SIGNATURE' || code === 'QR_MALFORMED') {
         msg = 'Mã QR không hợp lệ hoặc chữ ký bảo mật sai lệch.';
       } else if (code === 'QR_WRONG_EVENT') {
@@ -268,7 +268,7 @@ export const AttendanceSlot: React.FC<AttendanceSlotProps> = ({ eventId, event, 
           </div>
 
           <p className="text-xs text-slate-400">
-            * Lưu ý bảo mật: Mã QR tự động đổi sau mỗi 10 giây. Tối đa 3 lần thử sai trước khi bị tạm khóa.
+            * Lưu ý bảo mật: Mã QR tự động đổi sau mỗi {event?.qrRotationSeconds ?? 10} giây. Tối đa {maxAttempts} lần thử sai trước khi bị tạm khóa.
           </p>
         </div>
       )}
