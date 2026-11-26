@@ -46,15 +46,17 @@ export const RegistrationSlot: React.FC<RegistrationSlotProps> = ({ eventId, eve
         msg = 'Đã hết thời hạn đăng ký tham gia sự kiện.';
       } else if (code === 'NOT_IN_AUDIENCE') {
         msg = 'Sự kiện không áp dụng cho lớp của bạn.';
-      } else if (code === 'ALREADY_REGISTERED') {
-        msg = 'Bạn đã đăng ký tham gia sự kiện này rồi.';
+      } else if (code === 'EVENT_NOT_PUBLISHED') {
+        msg = 'Sự kiện chưa được công bố.';
       }
       setErrorMessage(msg);
     },
   });
 
   const isRegistered = registration?.status === 'REGISTERED';
-  const isRegistrationOpen = event?.registrationOpen ?? true;
+  const isPublished = !event || event.status === 'PUBLISHED';
+  const isEligible = event?.eligible !== false;
+  const isRegistrationOpen = event?.registrationOpen ?? false;
   const remainingQuota = event?.remainingQuota ?? 0;
   const quotaTotal = event?.quotaTotal ?? 0;
   const registeredCount = event?.registeredCount ?? 0;
@@ -115,7 +117,7 @@ export const RegistrationSlot: React.FC<RegistrationSlotProps> = ({ eventId, eve
             </div>
           ) : (
             <div>
-              {isRegistrationOpen && remainingQuota > 0 ? (
+              {isRegistrationOpen && remainingQuota > 0 && isEligible ? (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="text-xs text-slate-500 flex items-center gap-1.5">
                     <Clock className="w-4 h-4 text-slate-400" />
@@ -134,9 +136,15 @@ export const RegistrationSlot: React.FC<RegistrationSlotProps> = ({ eventId, eve
                 <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 text-slate-600 rounded-lg p-3 text-sm">
                   <AlertCircle className="w-4 h-4 text-slate-400 shrink-0" />
                   <span>
-                    {remainingQuota === 0
-                      ? 'Sự kiện đã hết suất tham gia.'
-                      : 'Đã hết thời hạn đăng ký sự kiện.'}
+                    {!event
+                      ? 'Đang tải thông tin đăng ký sự kiện...'
+                      : !isEligible
+                        ? 'Sự kiện không áp dụng cho lớp của bạn.'
+                        : !isPublished
+                          ? 'Sự kiện chưa được công bố hoặc đã hủy.'
+                          : remainingQuota === 0
+                            ? 'Sự kiện đã hết suất tham gia.'
+                            : 'Đã hết thời hạn đăng ký sự kiện.'}
                   </span>
                 </div>
               )}

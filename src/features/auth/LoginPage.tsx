@@ -37,11 +37,16 @@ export const LoginPage: React.FC = () => {
     },
   });
 
+  const showDemoAccounts = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === 'true';
+
   const onSubmit = async (data: LoginFormData) => {
     setServerError(null);
     try {
       await login(data.loginId, data.password, rememberMe);
-      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+      const fromState = (location.state as { from?: { pathname?: string; search?: string; hash?: string } })?.from;
+      const from = fromState?.pathname
+        ? `${fromState.pathname}${fromState.search ?? ''}${fromState.hash ?? ''}`
+        : '/';
       navigate(from, { replace: true });
     } catch (err) {
       if (err instanceof ApiErrorException) {
@@ -150,33 +155,35 @@ export const LoginPage: React.FC = () => {
             </div>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-[#DCE5EE]">
-            <p className="text-[11px] font-semibold text-[#73899B] uppercase tracking-wider text-center mb-3">
-              Tài khoản demo thử nghiệm (Mật khẩu: Demo@12345)
-            </p>
-            <div className="grid grid-cols-2 gap-2.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleQuickFill('owner01')}
-                className="!border-[#DCE5EE] !text-[#25435E] hover:!bg-[#E5F4FC] hover:!border-[#0789B7]/40 hover:!text-[#0789B7]"
-                icon={<ShieldCheck className="w-4 h-4 text-[#0789B7]" aria-hidden="true" />}
-              >
-                Chủ sự kiện
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleQuickFill('sv001')}
-                className="!border-[#DCE5EE] !text-[#25435E] hover:!bg-[#E5F4FC] hover:!border-[#0789B7]/40 hover:!text-[#0789B7]"
-                icon={<UserCheck className="w-4 h-4 text-[#0789B7]" aria-hidden="true" />}
-              >
-                Sinh viên (K49)
-              </Button>
+          {showDemoAccounts && (
+            <div className="mt-6 pt-5 border-t border-[#DCE5EE]">
+              <p className="text-[11px] font-semibold text-[#73899B] uppercase tracking-wider text-center mb-3">
+                Tài khoản demo thử nghiệm (Mật khẩu: Demo@12345)
+              </p>
+              <div className="grid grid-cols-2 gap-2.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleQuickFill('owner01')}
+                  className="!border-[#DCE5EE] !text-[#25435E] hover:!bg-[#E5F4FC] hover:!border-[#0789B7]/40 hover:!text-[#0789B7]"
+                  icon={<ShieldCheck className="w-4 h-4 text-[#0789B7]" aria-hidden="true" />}
+                >
+                  Chủ sự kiện
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleQuickFill('sv001')}
+                  className="!border-[#DCE5EE] !text-[#25435E] hover:!bg-[#E5F4FC] hover:!border-[#0789B7]/40 hover:!text-[#0789B7]"
+                  icon={<UserCheck className="w-4 h-4 text-[#0789B7]" aria-hidden="true" />}
+                >
+                  Sinh viên (K49)
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 

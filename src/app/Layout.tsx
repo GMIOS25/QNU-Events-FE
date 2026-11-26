@@ -71,7 +71,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
               {isOwner ? 'Không gian tổ chức sự kiện' : 'Không gian sinh viên'}
             </p>
             <p className="text-xs text-[#73899B] truncate mt-0.5">
-              {user?.classId ? `Lớp ${user.classId}` : user?.fullName || 'QNU Events'}
+              {user?.studentCode ? `MSSV ${user.studentCode}` : user?.fullName || 'QNU Events'}
             </p>
           </div>
         </div>

@@ -13,6 +13,7 @@ import type {
   MyRegistrationResponse,
   EventQrResponse,
   CheckInResponse,
+  MyAttendanceResponse,
   HistoryItem,
   HistoryFilterParams,
 } from '../features/events/types';
@@ -84,6 +85,10 @@ export async function checkInQr(eventId: string, token: string, key?: string): P
     idempotencyKey,
     body: JSON.stringify({ token }),
   });
+}
+
+export async function fetchMyAttendance(eventId: string): Promise<MyAttendanceResponse> {
+  return apiClient<MyAttendanceResponse>(`/api/v1/events/${eventId}/attendance/me`);
 }
 
 export async function fetchHistory(params?: HistoryFilterParams): Promise<Page<HistoryItem>> {

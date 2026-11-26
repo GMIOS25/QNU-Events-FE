@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { UserInfo, UserRole, LoginResponse } from './types';
@@ -45,15 +45,23 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(() => readStoredToken());
+  const [token, setToken] = useState<string | null>(() => {
+    const stored = readStoredToken();
+    setTokenProvider(() => stored);
+    return stored;
+  });
 
   const [user, setUser] = useState<UserInfo | null>(() => readStoredUser());
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const tokenRef = useRef<string | null>(token);
+  const skipNextMeCheckRef = useRef<boolean>(false);
 
   const queryClient = useQueryClient();
 
   const clearSession = useCallback(() => {
+    tokenRef.current = null;
+    setTokenProvider(() => null);
     setToken(null);
     setUser(null);
     sessionStorage.removeItem(TOKEN_KEY);
@@ -66,7 +74,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [queryClient]);
 
   useEffect(() => {
-    setTokenProvider(() => token);
+    tokenRef.current = token;
+    setTokenProvider(() => tokenRef.current);
     setOnUnauthorizedHandler(() => {
       clearSession();
     });
@@ -75,6 +84,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     async function loadUser() {
       if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      if (skipNextMeCheckRef.current) {
+        skipNextMeCheckRef.current = false;
         setIsLoading(false);
         return;
       }
@@ -99,10 +114,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify({ loginId, password }),
     });
 
+    // Cập nhật tokenProvider đồng bộ TRƯỚC khi navigate để tránh race condition 401 (BUG-18).
+    tokenRef.current = res.accessToken;
+    setTokenProvider(() => tokenRef.current);
+    skipNextMeCheckRef.current = true;
+
     // Phiên mới không được dùng lại cache của phiên cũ (kể cả khi phiên cũ hết hạn mà chưa logout).
     queryClient.clear();
     setToken(res.accessToken);
     setUser(res.user);
+    setIsLoading(false);
 
     if (remember) {
       sessionStorage.removeItem(TOKEN_KEY);
@@ -177,7 +198,7 @@ export const RequireRole: React.FC<RequireRoleProps> = ({ roles, children }) => 
       if (!user) {
         navigate('/login', { replace: true, state: { from: location } });
       } else if (roles && roles.length > 0 && !hasAnyRole(roles)) {
-        navigate('/unauthorized', { replace: true });
+        navigate('/events', { replace: true });
       }
     }
   }, [user, isLoading, roles, hasAnyRole, navigate, location]);

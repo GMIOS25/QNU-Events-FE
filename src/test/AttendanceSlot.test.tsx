@@ -69,6 +69,14 @@ describe('AttendanceSlot Component (QE-54 3-attempt limit & confirmation counter
         classId: 'cls-1',
       })
     );
+    vi.spyOn(eventsApi, 'fetchMyAttendance').mockResolvedValue({
+      status: 'NOT_CHECKED_IN',
+      acceptedAt: null,
+      attemptCount: 0,
+      maxAttempts: 3,
+      remainingAttempts: 3,
+      canRetry: true,
+    });
   });
 
   it('1. Hiển thị mặc định bộ đếm lượt 0/3 và các nút khả dụng khi chưa thử', () => {
@@ -173,6 +181,62 @@ describe('AttendanceSlot Component (QE-54 3-attempt limit & confirmation counter
 
     expect(screen.getByText(/Thời gian xác nhận:/i)).toBeInTheDocument();
     expect(onCheckedInMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('attempt-counter-badge')).not.toBeInTheDocument();
+  });
+
+  it('5. Khôi phục bộ đếm lượt 2/3 từ server sau khi tải lại trang (F5) (BUG-09 / QE-98)', async () => {
+    vi.spyOn(eventsApi, 'fetchMyAttendance').mockResolvedValueOnce({
+      status: 'NOT_CHECKED_IN',
+      acceptedAt: null,
+      attemptCount: 2,
+      maxAttempts: 3,
+      remainingAttempts: 1,
+      canRetry: true,
+    });
+
+    renderWithProviders(<AttendanceSlot eventId="evt-101" event={mockEvent} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('attempt-counter-badge')).toHaveTextContent('Lượt gửi xác nhận: 2/3');
+    });
+    expect(screen.getByRole('button', { name: /Quét mã QR bằng Camera/i })).toBeEnabled();
+  });
+
+  it('6. Khôi phục trạng thái khóa 3/3 từ server sau khi tải lại trang (F5) (BUG-09 / QE-98)', async () => {
+    vi.spyOn(eventsApi, 'fetchMyAttendance').mockResolvedValueOnce({
+      status: 'NOT_CHECKED_IN',
+      acceptedAt: null,
+      attemptCount: 3,
+      maxAttempts: 3,
+      remainingAttempts: 0,
+      canRetry: false,
+    });
+
+    renderWithProviders(<AttendanceSlot eventId="evt-101" event={mockEvent} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('attempt-counter-badge')).toHaveTextContent('Lượt gửi xác nhận: 3/3');
+      expect(screen.getByText(/Đã khóa chức năng điểm danh tự động/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /Quét mã QR bằng Camera/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Gửi mã/i })).toBeDisabled();
+  });
+
+  it('7. Khôi phục trạng thái đã điểm danh ACCEPTED từ server sau khi tải lại trang (F5) (BUG-09 / QE-98)', async () => {
+    vi.spyOn(eventsApi, 'fetchMyAttendance').mockResolvedValueOnce({
+      status: 'ACCEPTED',
+      acceptedAt: '2026-11-20T08:05:00Z',
+      attemptCount: 1,
+      maxAttempts: 3,
+      remainingAttempts: 2,
+      canRetry: false,
+    });
+
+    renderWithProviders(<AttendanceSlot eventId="evt-101" event={mockEvent} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Điểm danh thành công!/i)).toBeInTheDocument();
+    });
     expect(screen.queryByTestId('attempt-counter-badge')).not.toBeInTheDocument();
   });
 });
