@@ -112,4 +112,13 @@ describe('RegistrationSlot component', () => {
     expect(await screen.findByText(/Sự kiện chưa được công bố hoặc đã hủy/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Đăng ký giữ chỗ/i })).not.toBeInTheDocument();
   });
+
+  it('hides register action when student is not eligible (QE-37)', async () => {
+    const ineligibleEvent: EventDetail = { ...mockEvent, eligible: false };
+
+    renderWithProviders(<RegistrationSlot eventId="evt-1" event={ineligibleEvent} />);
+
+    expect(await screen.findByText(/Sự kiện không áp dụng cho lớp của bạn/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Đăng ký giữ chỗ/i })).not.toBeInTheDocument();
+  });
 });

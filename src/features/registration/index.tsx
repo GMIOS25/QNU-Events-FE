@@ -55,6 +55,7 @@ export const RegistrationSlot: React.FC<RegistrationSlotProps> = ({ eventId, eve
 
   const isRegistered = registration?.status === 'REGISTERED';
   const isPublished = !event || event.status === 'PUBLISHED';
+  const isEligible = event?.eligible !== false;
   const isRegistrationOpen = event?.registrationOpen ?? false;
   const remainingQuota = event?.remainingQuota ?? 0;
   const quotaTotal = event?.quotaTotal ?? 0;
@@ -116,7 +117,7 @@ export const RegistrationSlot: React.FC<RegistrationSlotProps> = ({ eventId, eve
             </div>
           ) : (
             <div>
-              {isRegistrationOpen && remainingQuota > 0 ? (
+              {isRegistrationOpen && remainingQuota > 0 && isEligible ? (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="text-xs text-slate-500 flex items-center gap-1.5">
                     <Clock className="w-4 h-4 text-slate-400" />
@@ -137,11 +138,13 @@ export const RegistrationSlot: React.FC<RegistrationSlotProps> = ({ eventId, eve
                   <span>
                     {!event
                       ? 'Đang tải thông tin đăng ký sự kiện...'
-                      : !isPublished
-                        ? 'Sự kiện chưa được công bố hoặc đã hủy.'
-                        : remainingQuota === 0
-                          ? 'Sự kiện đã hết suất tham gia.'
-                          : 'Đã hết thời hạn đăng ký sự kiện.'}
+                      : !isEligible
+                        ? 'Sự kiện không áp dụng cho lớp của bạn.'
+                        : !isPublished
+                          ? 'Sự kiện chưa được công bố hoặc đã hủy.'
+                          : remainingQuota === 0
+                            ? 'Sự kiện đã hết suất tham gia.'
+                            : 'Đã hết thời hạn đăng ký sự kiện.'}
                   </span>
                 </div>
               )}
