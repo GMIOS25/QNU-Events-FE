@@ -12,6 +12,14 @@ vi.mock('../api/events', () => ({
   publishEvent: vi.fn(),
   fetchMyRegistration: vi.fn().mockResolvedValue({ status: 'NONE' }),
   registerEvent: vi.fn(),
+  fetchMyAttendance: vi.fn().mockResolvedValue({
+    status: 'NOT_CHECKED_IN',
+    acceptedAt: null,
+    attemptCount: 0,
+    maxAttempts: 3,
+    remainingAttempts: 3,
+    canRetry: true,
+  }),
 }));
 
 vi.mock('../features/auth/AuthContext', () => ({

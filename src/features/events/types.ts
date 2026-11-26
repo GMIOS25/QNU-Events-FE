@@ -129,6 +129,15 @@ export interface CheckInResponse {
   acceptedAt: string;
 }
 
+export interface MyAttendanceResponse {
+  status: 'ACCEPTED' | 'NOT_CHECKED_IN';
+  acceptedAt?: string | null;
+  attemptCount: number;
+  maxAttempts: number;
+  remainingAttempts: number;
+  canRetry: boolean;
+}
+
 export interface AttendanceErrorDetails {
   method?: string;
   attemptCount?: number;

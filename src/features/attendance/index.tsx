@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { checkInQr } from '../../api/events';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { checkInQr, fetchMyAttendance } from '../../api/events';
 import { Button } from '../../components/Button';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -20,20 +20,36 @@ export const AttendanceSlot: React.FC<AttendanceSlotProps> = ({ eventId, event, 
   const [manualToken, setManualToken] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
-  const [attemptCount, setAttemptCount] = useState<number>(0);
-  const [maxAttempts, setMaxAttempts] = useState<number>(3);
-  const [canRetry, setCanRetry] = useState<boolean>(true);
+  const [localAcceptedAt, setLocalAcceptedAt] = useState<string | null>(null);
+  const [localAttemptCount, setLocalAttemptCount] = useState<number | null>(null);
+  const [localMaxAttempts, setLocalMaxAttempts] = useState<number | null>(null);
+  const [localCanRetry, setLocalCanRetry] = useState<boolean | null>(null);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
-  const isLimitReached = !canRetry || attemptCount >= maxAttempts;
+  // Khôi phục trạng thái đã điểm danh & số lần thử từ server khi tải lại trang (F5) (BUG-09 / QE-98)
+  const { data: myAttendance } = useQuery({
+    queryKey: ['my-attendance', eventId],
+    queryFn: () => fetchMyAttendance(eventId),
+    enabled: Boolean(eventId) && typeof fetchMyAttendance === 'function',
+    retry: false,
+  });
+
+  const acceptedAt =
+    localAcceptedAt ?? (myAttendance?.status === 'ACCEPTED' ? (myAttendance.acceptedAt ?? null) : null);
+  const maxAttempts = localMaxAttempts ?? myAttendance?.maxAttempts ?? 3;
+  const attemptCount = Math.max(localAttemptCount ?? 0, myAttendance?.attemptCount ?? 0);
+  const canRetry =
+    localCanRetry !== null ? localCanRetry : myAttendance ? myAttendance.canRetry : true;
+
+  const isLimitReached = !acceptedAt && (!canRetry || attemptCount >= maxAttempts);
 
   const checkInMutation = useMutation({
     mutationFn: (token: string) => checkInQr(eventId, token.trim()),
     onSuccess: (data) => {
       setErrorMessage(null);
-      setAcceptedAt(data.acceptedAt);
+      setLocalAcceptedAt(data.acceptedAt);
       setIsScannerOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['my-attendance', eventId] });
       queryClient.invalidateQueries({ queryKey: ['history'] });
       queryClient.invalidateQueries({ queryKey: ['event', eventId] });
       if (onCheckedIn) onCheckedIn();
@@ -46,13 +62,13 @@ export const AttendanceSlot: React.FC<AttendanceSlotProps> = ({ eventId, event, 
       if (apiError?.details) {
         const details = apiError.details as AttendanceErrorDetails;
         if (typeof details.attemptCount === 'number') {
-          setAttemptCount(details.attemptCount);
+          setLocalAttemptCount(details.attemptCount);
         }
         if (typeof details.maxAttempts === 'number') {
-          setMaxAttempts(details.maxAttempts);
+          setLocalMaxAttempts(details.maxAttempts);
         }
         if (typeof details.canRetry === 'boolean') {
-          setCanRetry(details.canRetry);
+          setLocalCanRetry(details.canRetry);
         }
       }
 
@@ -60,8 +76,8 @@ export const AttendanceSlot: React.FC<AttendanceSlotProps> = ({ eventId, event, 
         msg = 'Bạn đã điểm danh sự kiện này rồi.';
       } else if (code === 'ATTEMPT_LIMIT_REACHED') {
         msg = 'Bạn đã vượt quá số lần thử điểm danh cho phép (tối đa 3 lần). Vui lòng liên hệ Ban tổ chức.';
-        setAttemptCount(3);
-        setCanRetry(false);
+        setLocalAttemptCount(maxAttempts);
+        setLocalCanRetry(false);
         setIsScannerOpen(false);
       } else if (code === 'QR_EXPIRED') {
         msg = `Mã QR đã hết hạn (xoay vòng ${event?.qrRotationSeconds ?? 10} giây). Vui lòng quét lại mã đang hiển thị.`;
@@ -77,6 +93,7 @@ export const AttendanceSlot: React.FC<AttendanceSlotProps> = ({ eventId, event, 
         msg = 'Bạn chưa đăng ký giữ chỗ sự kiện này nên không thể điểm danh.';
       }
 
+      queryClient.invalidateQueries({ queryKey: ['my-attendance', eventId] });
       setErrorMessage(msg);
     },
   });
@@ -193,7 +210,7 @@ export const AttendanceSlot: React.FC<AttendanceSlotProps> = ({ eventId, event, 
               <div>
                 <p className="font-semibold text-rose-900">Đã khóa chức năng điểm danh tự động</p>
                 <p className="text-rose-700 mt-0.5">
-                  Bạn đã sử dụng hết 3/3 lần thử quét mã QR. Vui lòng gặp Ban tổ chức tại bàn điều phối để được hỗ trợ điểm danh ngoại lệ.
+                  Bạn đã sử dụng hết {maxAttempts}/{maxAttempts} lần thử quét mã QR. Vui lòng gặp Ban tổ chức tại bàn điều phối để được hỗ trợ điểm danh ngoại lệ.
                 </p>
               </div>
             </div>
