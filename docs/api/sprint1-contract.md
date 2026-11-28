@@ -42,7 +42,7 @@ Mọi phản hồi lỗi (HTTP status ≥ 400) đều trả về cấu trúc Api
 | 422 | `QR_FROM_FUTURE` | Mã QR mang epoch tương lai |
 | 500 | `INTERNAL_ERROR` | Lỗi máy chủ (không để lộ stack trace hay thông tin nhạy cảm) |
 
-> **Mở rộng Sprint 2–3:** Danh mục mã lỗi mở rộng thống nhất toàn dự án (bao gồm `CANCELLATION_CUTOFF_PASSED`, `GPS_OUT_OF_RANGE`, `INVALID_EVIDENCE_FILE`, `OFFLINE_SYNC_WINDOW_EXPIRED`, `STUDENT_PENALIZED`, `OAUTH_*`, `SESSION_EXPIRED`) xem tại `QNU-Events-BE/docs/api/error-codes.md`.
+> **Mở rộng Sprint 2–3:** Danh mục mã lỗi chuẩn thống nhất toàn dự án (bao gồm `CANCELLATION_CUTOFF_PASSED`, `GPS_OUT_OF_RANGE`, `INVALID_EVIDENCE_FILE`, `OFFLINE_SYNC_WINDOW_EXPIRED`, `STUDENT_PENALIZED`, `OAUTH_*`, `SESSION_EXPIRED`) xem tại `QNU-Events-BE/docs/api/error-codes.md`.
 
 ---
 
