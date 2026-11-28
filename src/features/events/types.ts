@@ -11,6 +11,8 @@ export const COMMON_ACTIVITY_TYPES = [
 
 export type CommonActivityType = (typeof COMMON_ACTIVITY_TYPES)[number];
 
+export type AttendanceMethod = 'DYNAMIC_QR' | 'GPS';
+
 export interface EventAudienceClass {
   id: string;
   code: string;
@@ -26,12 +28,15 @@ export interface EventUpsert {
   registrationDeadline: string;
   attendanceOpenAt: string;
   attendanceCloseAt: string;
-  attendanceMethod: 'DYNAMIC_QR';
+  attendanceMethod: AttendanceMethod;
   quotaTotal: number;
   audienceClassIds: string[];
   activityType: string;
   activityPoints: number;
   version?: number;
+  gpsLat?: number | null;
+  gpsLng?: number | null;
+  allowedRadiusMeters?: number | null;
 }
 
 export interface EventSummary {
@@ -56,9 +61,12 @@ export interface EventDetail extends EventSummary {
   registrationDeadline: string;
   attendanceOpenAt: string;
   attendanceCloseAt: string;
-  attendanceMethod: 'DYNAMIC_QR';
+  attendanceMethod: AttendanceMethod;
   qrRotationSeconds: number;
   qrGraceSeconds: number;
+  gpsLat?: number | null;
+  gpsLng?: number | null;
+  allowedRadiusMeters?: number | null;
   ownerId: string;
   audienceClassIds: string[];
   audienceClasses?: EventAudienceClass[];
@@ -129,6 +137,19 @@ export interface CheckInResponse {
   acceptedAt: string;
 }
 
+export interface GpsCheckInRequest {
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number;
+}
+
+export interface GpsCheckInResponse {
+  status: string;
+  acceptedAt: string;
+  distanceMeters: number;
+  allowedRadiusMeters: number;
+}
+
 export interface MyAttendanceResponse {
   status: 'ACCEPTED' | 'NOT_CHECKED_IN';
   acceptedAt?: string | null;
@@ -144,6 +165,8 @@ export interface AttendanceErrorDetails {
   maxAttempts?: number;
   remainingAttempts?: number;
   canRetry?: boolean;
+  distanceMeters?: number;
+  allowedRadiusMeters?: number;
 }
 
 export interface HistoryFilterParams {

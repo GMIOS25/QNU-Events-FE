@@ -118,4 +118,118 @@ describe('EventFormPage edit flow [QE-65]', () => {
     const banner = await screen.findByRole('alert');
     expect(banner).toHaveTextContent('Thời gian kết thúc phải sau thời gian bắt đầu.');
   });
+
+  it('allows switching to GPS attendance method and sends gpsLat, gpsLng, allowedRadiusMeters [QE-55]', async () => {
+    await openHydratedEditPage();
+
+    fireEvent.click(screen.getByRole('radio', { name: /Vị trí GPS/i }));
+
+    expect(screen.getByTestId('gps-config-section')).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('VD: 13.758900'), { target: { value: '13.7589' } });
+    fireEvent.change(screen.getByPlaceholderText('VD: 109.218300'), { target: { value: '109.2183' } });
+    fireEvent.change(screen.getByPlaceholderText('60'), { target: { value: '80' } });
+
+    clickSave();
+
+    await waitFor(() => expect(eventsApi.updateEvent).toHaveBeenCalledTimes(1));
+    expect(eventsApi.updateEvent).toHaveBeenCalledWith(
+      'evt-1',
+      expect.objectContaining({
+        attendanceMethod: 'GPS',
+        gpsLat: 13.7589,
+        gpsLng: 109.2183,
+        allowedRadiusMeters: 80,
+        version: 3,
+      })
+    );
+  });
+
+  it('validates GPS radius range (10..1000m) before submitting [QE-55]', async () => {
+    await openHydratedEditPage();
+
+    fireEvent.click(screen.getByRole('radio', { name: /Vị trí GPS/i }));
+    fireEvent.change(screen.getByPlaceholderText('VD: 13.758900'), { target: { value: '13.7589' } });
+    fireEvent.change(screen.getByPlaceholderText('VD: 109.218300'), { target: { value: '109.2183' } });
+    fireEvent.change(screen.getByPlaceholderText('60'), { target: { value: '5' } });
+
+    const form = screen.getByRole('button', { name: /Lưu thay đổi/i }).closest('form')!;
+    fireEvent.submit(form);
+
+    const banner = await screen.findByRole('alert');
+    expect(banner).toHaveTextContent('Bán kính điểm danh GPS phải là số nguyên từ 10 đến 1000 mét.');
+    expect(eventsApi.updateEvent).not.toHaveBeenCalled();
+  });
+
+  it('fills gpsLat and gpsLng when clicking "Lấy tọa độ hiện tại" [QE-55]', async () => {
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      success({
+        coords: {
+          latitude: 13.7589123,
+          longitude: 109.2183456,
+          accuracy: 8,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+          toJSON: () => ({}),
+        },
+        timestamp: Date.now(),
+        toJSON: () => ({}),
+      } as GeolocationPosition);
+    });
+    Object.defineProperty(navigator, 'geolocation', {
+      value: { getCurrentPosition },
+      configurable: true,
+    });
+
+    await openHydratedEditPage();
+    fireEvent.click(screen.getByRole('radio', { name: /Vị trí GPS/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Lấy tọa độ hiện tại/i }));
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('VD: 13.758900')).toHaveValue(13.758912);
+      expect(screen.getByPlaceholderText('VD: 109.218300')).toHaveValue(109.218346);
+    });
+  });
+
+  it('shows error banner if geolocation fails when clicking "Lấy tọa độ hiện tại" [QE-55]', async () => {
+    const getCurrentPosition = vi.fn((_s: PositionCallback, error?: PositionErrorCallback) => {
+      if (error) {
+        error({
+          code: 1,
+          message: 'Denied',
+          PERMISSION_DENIED: 1,
+          POSITION_UNAVAILABLE: 2,
+          TIMEOUT: 3,
+        } as GeolocationPositionError);
+      }
+    });
+    Object.defineProperty(navigator, 'geolocation', {
+      value: { getCurrentPosition },
+      configurable: true,
+    });
+
+    await openHydratedEditPage();
+    fireEvent.click(screen.getByRole('radio', { name: /Vị trí GPS/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Lấy tọa độ hiện tại/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/từ chối quyền truy cập vị trí/i);
+  });
+
+  it('hydrates an existing GPS draft event with its coordinates and radius in edit mode [QE-55]', async () => {
+    vi.mocked(eventsApi.fetchEvent).mockResolvedValue({
+      ...existingEvent,
+      attendanceMethod: 'GPS',
+      gpsLat: 13.7589,
+      gpsLng: 109.2183,
+      allowedRadiusMeters: 120,
+    });
+
+    await openHydratedEditPage();
+
+    expect(screen.getByRole('radio', { name: /Vị trí GPS/i })).toBeChecked();
+    expect(screen.getByPlaceholderText('VD: 13.758900')).toHaveValue(13.7589);
+    expect(screen.getByPlaceholderText('VD: 109.218300')).toHaveValue(109.2183);
+    expect(screen.getByPlaceholderText('60')).toHaveValue(120);
+  });
 });

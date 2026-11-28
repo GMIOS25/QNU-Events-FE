@@ -76,6 +76,8 @@ export const EventDetailPage: React.FC = () => {
         msg = 'Bạn cần xem trước sự kiện trước khi công bố.';
       } else if (code === 'PREVIEW_OUTDATED') {
         msg = 'Bản xem trước đã cũ do có sự thay đổi. Vui lòng xem trước lại.';
+      } else if (code === 'GPS_NOT_CONFIGURED') {
+        msg = 'Sự kiện GPS chưa được cấu hình tọa độ tâm hoặc bán kính hợp lệ.';
       }
       setActionError(msg);
     },
@@ -138,7 +140,7 @@ export const EventDetailPage: React.FC = () => {
               </>
             )}
 
-            {isPublished && (
+            {isPublished && event.attendanceMethod === 'DYNAMIC_QR' && (
               <Button
                 variant="primary"
                 size="sm"
@@ -222,7 +224,9 @@ export const EventDetailPage: React.FC = () => {
               <Clock className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-xs text-slate-500 font-medium">Cửa sổ điểm danh QR</p>
+              <p className="text-xs text-slate-500 font-medium">
+                {event.attendanceMethod === 'GPS' ? 'Cửa sổ điểm danh GPS' : 'Cửa sổ điểm danh QR'}
+              </p>
               <p className="font-semibold text-slate-900 mt-0.5">
                 {formatDateTime(event.attendanceOpenAt)} đến {formatDateTime(event.attendanceCloseAt)}
               </p>
@@ -313,7 +317,15 @@ export const EventDetailPage: React.FC = () => {
               <p>• <strong>Chỉ tiêu:</strong> {previewData.event.quotaTotal} sinh viên</p>
               <p>• <strong>Cửa sổ điểm danh:</strong> {formatDateTime(previewData.event.attendanceOpenAt)} - {formatDateTime(previewData.event.attendanceCloseAt)}</p>
               <p>• <strong>Điểm rèn luyện:</strong> +{previewData.event.activityPoints} điểm ({previewData.event.activityType})</p>
-              <p>• <strong>Chu kỳ mã QR:</strong> Xoay vòng mỗi {previewData.event.qrRotationSeconds}s</p>
+              {previewData.event.attendanceMethod === 'GPS' ? (
+                <p>
+                  • <strong>Điểm danh GPS:</strong> Tâm ({previewData.event.gpsLat?.toFixed(6) ?? 'Chưa cấu hình'},{' '}
+                  {previewData.event.gpsLng?.toFixed(6) ?? 'Chưa cấu hình'}) — Bán kính{' '}
+                  {previewData.event.allowedRadiusMeters ?? 60} m
+                </p>
+              ) : (
+                <p>• <strong>Chu kỳ mã QR:</strong> Xoay vòng mỗi {previewData.event.qrRotationSeconds}s</p>
+              )}
               <p>
                 • <strong>Đối tượng tham gia:</strong>{' '}
                 {previewData.event.audienceClasses && previewData.event.audienceClasses.length > 0
