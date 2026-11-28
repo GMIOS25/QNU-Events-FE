@@ -13,6 +13,8 @@ import type {
   MyRegistrationResponse,
   EventQrResponse,
   CheckInResponse,
+  GpsCheckInRequest,
+  GpsCheckInResponse,
   MyAttendanceResponse,
   HistoryItem,
   HistoryFilterParams,
@@ -84,6 +86,19 @@ export async function checkInQr(eventId: string, token: string, key?: string): P
     method: 'POST',
     idempotencyKey,
     body: JSON.stringify({ token }),
+  });
+}
+
+export async function checkInGps(
+  eventId: string,
+  payload: GpsCheckInRequest,
+  key?: string
+): Promise<GpsCheckInResponse> {
+  const idempotencyKey = key || createIdempotencyKey();
+  return apiClient<GpsCheckInResponse>(`/api/v1/events/${eventId}/attendance/gps`, {
+    method: 'POST',
+    idempotencyKey,
+    body: JSON.stringify(payload),
   });
 }
 

@@ -152,4 +152,51 @@ describe('EventDetailPage publish flow [QE-65]', () => {
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(eventsApi.publishEvent).not.toHaveBeenCalled();
   });
+
+  it('shows GPS coordinates in preview modal, maps GPS_NOT_CONFIGURED error, and hides QR button for published GPS events [QE-55]', async () => {
+    const gpsDraft: EventDetail = {
+      ...draftEvent,
+      attendanceMethod: 'GPS',
+      gpsLat: 13.7589,
+      gpsLng: 109.2183,
+      allowedRadiusMeters: 75,
+    };
+    vi.mocked(eventsApi.fetchEvent).mockResolvedValue(gpsDraft);
+    vi.mocked(eventsApi.previewEvent).mockResolvedValue({
+      event: gpsDraft,
+      previewVersion: PREVIEW_VERSION,
+    });
+    vi.mocked(eventsApi.publishEvent).mockRejectedValueOnce(
+      new ApiErrorException(409, { code: 'GPS_NOT_CONFIGURED', message: 'Server raw' })
+    );
+
+    renderDraftDetailPage();
+    await openPreviewModal();
+
+    expect(screen.getByText(/Điểm danh GPS:/i)).toBeInTheDocument();
+    expect(screen.getByText(/13\.758900/)).toBeInTheDocument();
+    expect(screen.getByText(/75 m/)).toBeInTheDocument();
+
+    await confirmAndPublish();
+
+    const banner = await screen.findByRole('alert');
+    expect(banner).toHaveTextContent('Sự kiện GPS chưa được cấu hình tọa độ tâm hoặc bán kính hợp lệ.');
+    expect(screen.queryByRole('button', { name: /Màn hình chiếu QR/i })).not.toBeInTheDocument();
+  });
+
+  it('hides "Màn hình chiếu QR" button for a published GPS event [QE-55]', async () => {
+    vi.mocked(eventsApi.fetchEvent).mockResolvedValue({
+      ...draftEvent,
+      status: 'PUBLISHED',
+      attendanceMethod: 'GPS',
+      gpsLat: 13.7589,
+      gpsLng: 109.2183,
+      allowedRadiusMeters: 60,
+    });
+
+    renderDraftDetailPage();
+
+    expect(await screen.findByText('Hội thảo AI')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Màn hình chiếu QR/i })).not.toBeInTheDocument();
+  });
 });

@@ -129,5 +129,22 @@ describe('EventDetailPage component [QE-31]', () => {
     expect(screen.getByText('K49CNTT2')).toBeInTheDocument();
     expect(screen.getByText(/Lớp bạn đủ điều kiện tham gia/i)).toBeInTheDocument();
   });
+
+  it('renders GPS attendance window label and GPS check-in slot for published GPS events [QE-55]', async () => {
+    const gpsDetail: EventDetail = {
+      ...mockDetail,
+      attendanceMethod: 'GPS',
+      gpsLat: 13.7589,
+      gpsLng: 109.2183,
+      allowedRadiusMeters: 60,
+      attendanceOpen: true,
+    };
+    vi.mocked(eventsApi.fetchEvent).mockResolvedValueOnce(gpsDetail);
+
+    renderEventDetailPage();
+
+    expect(await screen.findByText('Cửa sổ điểm danh GPS')).toBeInTheDocument();
+    expect(screen.getByTestId('gps-attendance-panel')).toBeInTheDocument();
+  });
 });
 

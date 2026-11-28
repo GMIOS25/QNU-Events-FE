@@ -5,9 +5,10 @@ import { fetchEvent, createEvent, updateEvent, fetchClasses } from '../../api/ev
 import { Button } from '../../components/Button';
 import { Field } from '../../components/Field';
 import { ErrorBanner } from '../../components/ErrorBanner';
-import { ArrowLeft, Save, Calendar, Users, Award } from 'lucide-react';
+import { ArrowLeft, Save, Calendar, Users, Award, MapPin, LocateFixed, QrCode } from 'lucide-react';
 import { toLocalDateTimeInput } from '../../lib/time';
-import { type EventUpsert, COMMON_ACTIVITY_TYPES } from './types';
+import { type AttendanceMethod, type EventUpsert, COMMON_ACTIVITY_TYPES } from './types';
+import { DEFAULT_GPS_RADIUS_METERS, requestCurrentGpsPosition } from '../attendance/gpsUtils';
 
 export const EventFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +26,11 @@ export const EventFormPage: React.FC = () => {
   const [registrationDeadline, setRegistrationDeadline] = useState('');
   const [attendanceOpenAt, setAttendanceOpenAt] = useState('');
   const [attendanceCloseAt, setAttendanceCloseAt] = useState('');
+  const [attendanceMethod, setAttendanceMethod] = useState<AttendanceMethod>('DYNAMIC_QR');
+  const [gpsLat, setGpsLat] = useState('');
+  const [gpsLng, setGpsLng] = useState('');
+  const [allowedRadiusMeters, setAllowedRadiusMeters] = useState(String(DEFAULT_GPS_RADIUS_METERS));
+  const [isLocatingVenue, setIsLocatingVenue] = useState(false);
   const [quotaTotal, setQuotaTotal] = useState('50');
   const [activityType, setActivityType] = useState('Hội thảo khoa học');
   const [activityPoints, setActivityPoints] = useState('5');
@@ -59,6 +65,14 @@ export const EventFormPage: React.FC = () => {
     setRegistrationDeadline(toLocalDateTimeInput(existingEvent.registrationDeadline));
     setAttendanceOpenAt(toLocalDateTimeInput(existingEvent.attendanceOpenAt));
     setAttendanceCloseAt(toLocalDateTimeInput(existingEvent.attendanceCloseAt));
+    setAttendanceMethod(existingEvent.attendanceMethod ?? 'DYNAMIC_QR');
+    setGpsLat(existingEvent.gpsLat != null ? String(existingEvent.gpsLat) : '');
+    setGpsLng(existingEvent.gpsLng != null ? String(existingEvent.gpsLng) : '');
+    setAllowedRadiusMeters(
+      existingEvent.allowedRadiusMeters != null
+        ? String(existingEvent.allowedRadiusMeters)
+        : String(DEFAULT_GPS_RADIUS_METERS)
+    );
     setQuotaTotal(String(existingEvent.quotaTotal));
     setActivityType(existingEvent.activityType);
     setActivityPoints(String(existingEvent.activityPoints));
@@ -111,6 +125,26 @@ export const EventFormPage: React.FC = () => {
         throw new Error('Vui lòng chọn ít nhất một lớp đối tượng được tham gia sự kiện.');
       }
 
+      let parsedGpsLat: number | null = null;
+      let parsedGpsLng: number | null = null;
+      let parsedRadius: number | null = null;
+
+      if (attendanceMethod === 'GPS') {
+        parsedGpsLat = Number(gpsLat);
+        parsedGpsLng = Number(gpsLng);
+        parsedRadius = allowedRadiusMeters.trim() ? Number(allowedRadiusMeters) : DEFAULT_GPS_RADIUS_METERS;
+
+        if (!gpsLat.trim() || !Number.isFinite(parsedGpsLat) || parsedGpsLat < -90 || parsedGpsLat > 90) {
+          throw new Error('Vĩ độ tâm sự kiện (Latitude) phải là số hợp lệ trong khoảng [-90, 90].');
+        }
+        if (!gpsLng.trim() || !Number.isFinite(parsedGpsLng) || parsedGpsLng < -180 || parsedGpsLng > 180) {
+          throw new Error('Kinh độ tâm sự kiện (Longitude) phải là số hợp lệ trong khoảng [-180, 180].');
+        }
+        if (!Number.isInteger(parsedRadius) || parsedRadius < 10 || parsedRadius > 1000) {
+          throw new Error('Bán kính điểm danh GPS phải là số nguyên từ 10 đến 1000 mét.');
+        }
+      }
+
       const payload: EventUpsert = {
         title: title.trim(),
         description: description.trim() || undefined,
@@ -120,11 +154,18 @@ export const EventFormPage: React.FC = () => {
         registrationDeadline: new Date(registrationDeadline).toISOString(),
         attendanceOpenAt: new Date(attendanceOpenAt).toISOString(),
         attendanceCloseAt: new Date(attendanceCloseAt).toISOString(),
-        attendanceMethod: 'DYNAMIC_QR',
+        attendanceMethod,
         quotaTotal: parsedQuota,
         audienceClassIds: selectedClassIds,
         activityType: activityType.trim(),
         activityPoints: parsedPoints,
+        ...(attendanceMethod === 'GPS'
+          ? {
+              gpsLat: parsedGpsLat,
+              gpsLng: parsedGpsLng,
+              allowedRadiusMeters: parsedRadius,
+            }
+          : {}),
       };
 
       if (isEdit && id) {
@@ -284,7 +325,7 @@ export const EventFormPage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field
-                label="Mở cửa sổ điểm danh QR"
+                label={attendanceMethod === 'GPS' ? 'Mở cửa sổ điểm danh GPS' : 'Mở cửa sổ điểm danh QR'}
                 type="datetime-local"
                 value={attendanceOpenAt}
                 onChange={(e) => setAttendanceOpenAt(e.target.value)}
@@ -292,12 +333,142 @@ export const EventFormPage: React.FC = () => {
               />
 
               <Field
-                label="Đóng cửa sổ điểm danh QR"
+                label={attendanceMethod === 'GPS' ? 'Đóng cửa sổ điểm danh GPS' : 'Đóng cửa sổ điểm danh QR'}
                 type="datetime-local"
                 value={attendanceCloseAt}
                 onChange={(e) => setAttendanceCloseAt(e.target.value)}
                 required
               />
+            </div>
+
+            {/* Phương thức điểm danh (DYNAMIC_QR / GPS) */}
+            <div className="space-y-3 pt-2">
+              <label className="text-sm font-medium text-slate-700 block">Phương thức điểm danh</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label
+                  className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    attendanceMethod === 'DYNAMIC_QR'
+                      ? 'bg-blue-50 border-blue-300 text-blue-950'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="attendanceMethod"
+                    value="DYNAMIC_QR"
+                    checked={attendanceMethod === 'DYNAMIC_QR'}
+                    onChange={() => setAttendanceMethod('DYNAMIC_QR')}
+                    className="mt-1 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div>
+                    <div className="font-semibold text-sm flex items-center gap-1.5">
+                      <QrCode className="w-4 h-4 text-blue-600" />
+                      QR Động
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Chiếu mã QR xoay vòng mỗi 10 giây tại hội trường để sinh viên quét.
+                    </p>
+                  </div>
+                </label>
+
+                <label
+                  className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    attendanceMethod === 'GPS'
+                      ? 'bg-teal-50 border-teal-300 text-teal-950'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="attendanceMethod"
+                    value="GPS"
+                    checked={attendanceMethod === 'GPS'}
+                    onChange={() => setAttendanceMethod('GPS')}
+                    className="mt-1 text-teal-600 focus:ring-teal-500"
+                  />
+                  <div>
+                    <div className="font-semibold text-sm flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-teal-600" />
+                      Vị trí GPS
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Kiểm tra tọa độ sinh viên nằm trong bán kính địa điểm tổ chức.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {attendanceMethod === 'GPS' && (
+                <div
+                  data-testid="gps-config-section"
+                  className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-slate-700">
+                      Cấu hình tọa độ tâm & bán kính điểm danh GPS
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      loading={isLocatingVenue}
+                      icon={<LocateFixed className="w-3.5 h-3.5" />}
+                      onClick={async () => {
+                        setErrorMessage(null);
+                        setIsLocatingVenue(true);
+                        try {
+                          const pos = await requestCurrentGpsPosition();
+                          setGpsLat(pos.latitude.toFixed(6));
+                          setGpsLng(pos.longitude.toFixed(6));
+                        } catch (err: unknown) {
+                          setErrorMessage(
+                            err instanceof Error ? err.message : 'Không thể lấy tọa độ GPS hiện tại.'
+                          );
+                        } finally {
+                          setIsLocatingVenue(false);
+                        }
+                      }}
+                    >
+                      Lấy tọa độ hiện tại
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <Field
+                      label="Vĩ độ tâm (Latitude)"
+                      type="number"
+                      step="any"
+                      min={-90}
+                      max={90}
+                      placeholder="VD: 13.758900"
+                      value={gpsLat}
+                      onChange={(e) => setGpsLat(e.target.value)}
+                      required
+                    />
+                    <Field
+                      label="Kinh độ tâm (Longitude)"
+                      type="number"
+                      step="any"
+                      min={-180}
+                      max={180}
+                      placeholder="VD: 109.218300"
+                      value={gpsLng}
+                      onChange={(e) => setGpsLng(e.target.value)}
+                      required
+                    />
+                    <Field
+                      label="Bán kính cho phép (mét)"
+                      type="number"
+                      min={10}
+                      max={1000}
+                      placeholder="60"
+                      value={allowedRadiusMeters}
+                      onChange={(e) => setAllowedRadiusMeters(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
