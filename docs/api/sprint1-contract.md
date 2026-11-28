@@ -42,6 +42,8 @@ Mọi phản hồi lỗi (HTTP status ≥ 400) đều trả về cấu trúc Api
 | 422 | `QR_FROM_FUTURE` | Mã QR mang epoch tương lai |
 | 500 | `INTERNAL_ERROR` | Lỗi máy chủ (không để lộ stack trace hay thông tin nhạy cảm) |
 
+> **Mở rộng Sprint 2–3:** Danh mục mã lỗi chuẩn thống nhất toàn dự án (bao gồm `CANCELLATION_CUTOFF_PASSED`, `GPS_OUT_OF_RANGE`, `INVALID_EVIDENCE_FILE`, `OFFLINE_SYNC_WINDOW_EXPIRED`, `STUDENT_PENALIZED`, `OAUTH_*`, `SESSION_EXPIRED`) xem tại `QNU-Events-BE/docs/api/error-codes.md`.
+
 ---
 
 ## 2. Danh sách Endpoint API Sprint 1
@@ -54,8 +56,8 @@ Mọi phản hồi lỗi (HTTP status ≥ 400) đều trả về cấu trúc Api
 | `GET` | `/api/v1/classes` | EVENT_OWNER | — | 200 `[{id, code, name, facultyName}]` | Lấy danh sách lớp để chọn audience |
 | `POST` | `/api/v1/events` | EVENT_OWNER | `EventUpsert` | 201 `EventDetail` (status: `DRAFT`) | Tạo sự kiện nháp |
 | `PUT` | `/api/v1/events/{id}` | EVENT_OWNER | `EventUpsert + version` | 200 `EventDetail` | Chỉ sửa khi `DRAFT`; lệch version → 409 |
-| `GET` | `/api/v1/events/{id}/preview` | EVENT_OWNER | — | 200 `{event: EventDetail, previewVersion: number}` | Đánh dấu `previewed_version = version` |
-| `POST` | `/api/v1/events/{id}/publish` | EVENT_OWNER | `{confirm: true, previewVersion: number}` | 200 `EventDetail` (status: `PUBLISHED`) | Kiểm tra đã preview và version khớp |
+| `GET` | `/api/v1/events/{id}/preview` | EVENT_OWNER | — | 200 `{event: EventDetail, previewVersion: number}` | Chỉ cho phép khi `DRAFT` (khác `DRAFT` → `409 VERSION_CONFLICT`); đánh dấu `previewed_version = version` |
+| `POST` | `/api/v1/events/{id}/publish` | EVENT_OWNER | `{confirm: true, previewVersion: number}` | 200 `EventDetail` (status: `PUBLISHED`) | Kiểm tra `DRAFT` (`CANCELLED` → `409 VERSION_CONFLICT`; `PUBLISHED` idempotent 200), đã preview và version khớp |
 | `GET` | `/api/v1/events` | STUDENT / EVENT_OWNER | Query params: `q`, `activityType`, `page`, `size` | 200 `Page<EventSummary>` | Sinh viên: chỉ thấy `PUBLISHED` và đúng lớp; Chủ sự kiện: thấy sự kiện của mình |
 | `GET` | `/api/v1/events/{id}` | STUDENT / EVENT_OWNER | — | 200 `EventDetail` | Không đủ quyền xem → 404 |
 | `POST` | `/api/v1/events/{id}/registrations` | STUDENT | — | 201 (mới) / 200 (lặp lại) `{id, status, alreadyRegistered}` | Giữ suất nguyên tử, chống race condition |
